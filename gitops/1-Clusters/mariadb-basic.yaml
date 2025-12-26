@@ -81,6 +81,9 @@ spec:
           - name: openstack
             characterSet: utf8mb4
             collate: utf8mb4_unicode_ci
+          - name: "keystone"
+            characterSet: utf8mb4
+            collate: utf8mb4_unicode_ci
 
         # Create a default user
         users:
@@ -89,6 +92,12 @@ spec:
               name: mariadb-basic-user
               key: password
             host: "%"
+          - name: keystone
+            passwordSecretKeyRef:
+              name: mariadb-keystone-user
+              key: password
+            host: "%"
+          
 
         # Grant privileges to the user
         grants:
@@ -98,6 +107,14 @@ spec:
             database: "openstack"
             table: "*"
             username: openstack
+            host: "%"
+            grantOption: false
+          - name: keystone-grants
+            privileges:
+              - "ALL PRIVILEGES"
+            database: "keystone"
+            table: "*"
+            username: keystone
             host: "%"
             grantOption: false
 
