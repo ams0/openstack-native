@@ -67,9 +67,9 @@ spec:
                   - apiGroups: [""]
                     resources: ["pods", "services", "endpoints", "configmaps", "secrets"]
                     verbs: ["get", "list", "watch"]
-    - repoURL: https://github.com/ams0/openstack-native.git
-      targetRevision: main
-      path: gitops/0Operators/rabbitmq-rbac
+    # - repoURL: https://github.com/ams0/openstack-native.git
+    #   targetRevision: main
+    #   path: gitops/0Operators/rabbitmq-rbac
 
   destination:
     server: https://kubernetes.default.svc
