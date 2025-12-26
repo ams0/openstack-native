@@ -1,0 +1,35 @@
+{{ if .Values.metrics.enabled }}
+# ServiceMonitor for Prometheus
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: memcached
+  namespace: memcached-system
+  labels:
+    app: memcached
+spec:
+  selector:
+    matchLabels:
+      app: memcached
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+
+---
+# Service for metrics
+apiVersion: v1
+kind: Service
+metadata:
+  name: memcached-metrics
+  namespace: memcached-system
+  labels:
+    app: memcached
+spec:
+  selector:
+    app: memcached
+  ports:
+  - port: 9150
+    targetPort: 9150
+    name: metrics
+{{ end }}

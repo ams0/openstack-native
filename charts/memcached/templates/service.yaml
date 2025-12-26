@@ -1,0 +1,33 @@
+# Headless Service for StatefulSet
+apiVersion: v1
+kind: Service
+metadata:
+  name: memcached-headless
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: memcached
+spec:
+  clusterIP: None
+  selector:
+    app: memcached
+  ports:
+  - port: {{ .Values.service.port }}
+    targetPort: {{ .Values.service.port }}
+    name: memcached
+---
+# Load Balancer Service for external access
+apiVersion: v1
+kind: Service
+metadata:
+  name: memcached-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: memcached
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app: memcached
+  ports:
+  - port: {{ .Values.service.port }}
+    targetPort: {{ .Values.service.port }}
+    name: memcached

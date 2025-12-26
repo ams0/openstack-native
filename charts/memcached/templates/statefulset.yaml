@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: memcached
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: memcached
+spec:
+  serviceName: memcached-headless
+  replicas: {{ .Values.statefulset.replicaCount }}
+  selector:
+    matchLabels:
+      app: memcached
+  template:
+    metadata:
+      labels:
+        app: memcached
+    spec:
+      serviceAccountName: memcached
+{{ if .Values.statefulset.affinity }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - memcached
+              topologyKey: kubernetes.io/hostname
+{{ end }}
+      containers:
+      - name: memcached
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        ports:
+        - containerPort: 11211
+          name: memcached
+        command:
+        - memcached
+        args:
+        - -m {{ .Values.config.memoryLimitMB }}
+        - -p 11211
+        - -c {{ .Values.config.maxConnections }}
+        {{ if .Values.config.verboseLogging -}}
+        - -v
+        {{ end }}
+        {{ if .Values.statefulset.resources}}
+        resources:
+          requests:
+            memory: "{{ .Values.statefulset.resources.requests.memory }}"
+            cpu: "{{ .Values.statefulset.resources.requests.cpu }}"
+          limits:
+            memory: "{{ .Values.statefulset.resources.limits.memory }}"
+            cpu: "{{ .Values.statefulset.resources.limits.cpu }}"
+        {{ end }}
+        livenessProbe:
+          tcpSocket:
+            port: 11211
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 11211
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 11211
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      {{ if .Values.metrics.enabled }}
+      - name: memcached-exporter
+        image: {{ .Values.metrics.image.repository }}:{{ .Values.metrics.image.tag }}
+        ports:
+        - containerPort: 9150
+          name: metrics
+        args:
+        - --memcached.address=localhost:11211
+        - --web.listen-address=0.0.0.0:9150
+        {{ if .Values.metrics.resources }}
+        resources:
+          requests:
+            memory: "{{ .Values.metrics.resources.requests.memory }}"
+            cpu: "{{ .Values.metrics.resources.requests.cpu }}"
+          limits:
+            memory: "{{ .Values.metrics.resources.limits.memory }}"
+            cpu: "{{ .Values.metrics.resources.limits.cpu }}"
+        {{ end }}
+      {{ end }}

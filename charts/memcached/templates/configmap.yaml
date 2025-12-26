@@ -1,0 +1,26 @@
+# ConfigMap for Memcached configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: memcached-config
+  namespace: {{ .Release.Namespace }}
+data:
+  memcached.conf: |
+    # Memory limit (in MB) - adjust based on your needs
+    -m {{ .Values.config.memoryLimitMB }}
+    # Port to listen on
+    -p {{ .Values.service.port }}
+    # Run as daemon
+    -d
+{{ if .Values.config.verboseLogging }}
+    # Verbose logging
+    -v
+{{ end }}
+    # Maximum simultaneous connections
+    -c {{ .Values.config.maxConnections | default 1024 }}
+    # Growth factor for slab sizes
+    -f {{ .Values.config.slabGrowthFactor | default 1.25 }}
+    # Minimum space allocated for key+value+flags
+    -n {{ .Values.config.minItemSize | default 48 }}
+    # Override the size of each slab page (default 1MB)
+    -I {{ .Values.config.slabPageSize | default "1m" }}

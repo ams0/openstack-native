@@ -1,0 +1,117 @@
+# OpenStack Native - Kubernetes Deployment
+# .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+*.mo
+*.pot
+.venv
+venv/
+ENV/
+env/
+
+# Kubernetes & Helm
+*.kubeconfig
+kubeconfig
+*.key
+*.crt
+*.pem
+secrets/
+
+# ArgoCD
+argocd-initial-admin-secret.yaml
+
+# OpenStack
+*.conf.local
+*.conf.backup
+clouds.yaml
+secure.yaml
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars
+.terraform.lock.hcl
+
+# Ansible
+*.retry
+*.vault
+
+# IDEs & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+
+# Documentation builds
+docs/_build/
+site/
+
+# Custom local configuration
+local/
+*.local
+
+# Test outputs
+test-results/
+junit.xml
+temp.json
