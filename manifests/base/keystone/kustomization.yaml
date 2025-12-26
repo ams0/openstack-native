@@ -4,5 +4,6 @@ kind: Kustomization
 namespace: openstack
 
 resources:
+  - namespace.yaml
   - deployment.yaml
   - bootstrap-job.yaml

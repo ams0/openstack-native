@@ -3,5 +3,5 @@ kind: Kustomization
 
 namespace: openstack
 
-bases:
+resources:
   - ../../../base/keystone

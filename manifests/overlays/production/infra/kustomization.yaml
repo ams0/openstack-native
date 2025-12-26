@@ -3,8 +3,8 @@ kind: Kustomization
 
 namespace: openstack-infra
 
-bases:
+resources:
   - ../../../base/infra
 
-patchesStrategicMerge:
-  - replica-patch.yaml
+patches:
+  - path: replica-patch.yaml
