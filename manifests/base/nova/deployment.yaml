@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nova-config
+  namespace: openstack
+data:
+  nova.conf: |
+    [DEFAULT]
+    state_path = /var/lib/nova
+    enabled_apis = osapi_compute,metadata
+    transport_url = rabbit://openstack:changeme123@rabbitmq.openstack-infra.svc.cluster.local:5672/
+    my_ip = 0.0.0.0
+    
+    [api_database]
+    connection = mysql+pymysql://nova:changeme123@mariadb.openstack-infra.svc.cluster.local/nova_api
+    
+    [database]
+    connection = mysql+pymysql://nova:changeme123@mariadb.openstack-infra.svc.cluster.local/nova
+    
+    [api]
+    auth_strategy = keystone
+    
+    [keystone_authtoken]
+    www_authenticate_uri = http://keystone.openstack.svc.cluster.local:5000/
+    auth_url = http://keystone.openstack.svc.cluster.local:5000/
+    memcached_servers = memcached.openstack-infra.svc.cluster.local:11211
+    auth_type = password
+    project_domain_name = Default
+    user_domain_name = Default
+    project_name = service
+    username = nova
+    password = changeme123
+    
+    [vnc]
+    enabled = true
+    server_listen = 0.0.0.0
+    server_proxyclient_address = $my_ip
+    
+    [glance]
+    api_servers = http://glance.openstack.svc.cluster.local:9292
+    
+    [neutron]
+    auth_url = http://keystone.openstack.svc.cluster.local:5000
+    auth_type = password
+    project_domain_name = Default
+    user_domain_name = Default
+    project_name = service
+    username = neutron
+    password = changeme123
+    
+    [placement]
+    region_name = RegionOne
+    auth_url = http://keystone.openstack.svc.cluster.local:5000/v3
+    auth_type = password
+    project_domain_name = Default
+    user_domain_name = Default
+    project_name = service
+    username = placement
+    password = changeme123
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nova-api
+  namespace: openstack
+spec:
+  ports:
+    - port: 8774
+      targetPort: 8774
+      name: api
+  selector:
+    app: nova-api
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nova-api
+  namespace: openstack
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nova-api
+  template:
+    metadata:
+      labels:
+        app: nova-api
+    spec:
+      containers:
+      - name: nova-api
+        image: kolla/nova-api:2024.1-ubuntu-jammy
+        ports:
+        - containerPort: 8774
+          name: api
+        volumeMounts:
+        - name: nova-config
+          mountPath: /etc/nova
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: nova-config
+        configMap:
+          name: nova-config

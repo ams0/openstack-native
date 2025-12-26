@@ -1,0 +1,140 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: glance-config
+  namespace: openstack
+data:
+  glance-api.conf: |
+    [DEFAULT]
+    bind_host = 0.0.0.0
+    bind_port = 9292
+    workers = 4
+    
+    [database]
+    connection = mysql+pymysql://glance:changeme123@mariadb.openstack-infra.svc.cluster.local/glance
+    
+    [keystone_authtoken]
+    www_authenticate_uri = http://keystone.openstack.svc.cluster.local:5000
+    auth_url = http://keystone.openstack.svc.cluster.local:5000
+    memcached_servers = memcached.openstack-infra.svc.cluster.local:11211
+    auth_type = password
+    project_domain_name = Default
+    user_domain_name = Default
+    project_name = service
+    username = glance
+    password = changeme123
+    
+    [paste_deploy]
+    flavor = keystone
+    
+    [glance_store]
+    stores = file,http
+    default_store = file
+    filesystem_store_datadir = /var/lib/glance/images/
+    
+    [oslo_messaging_notifications]
+    driver = messagingv2
+    transport_url = rabbit://openstack:changeme123@rabbitmq.openstack-infra.svc.cluster.local:5672/
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: glance
+  namespace: openstack
+  labels:
+    app: glance
+spec:
+  ports:
+    - port: 9292
+      targetPort: 9292
+      name: api
+  selector:
+    app: glance
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: glance
+  namespace: openstack
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: glance
+  template:
+    metadata:
+      labels:
+        app: glance
+    spec:
+      initContainers:
+      - name: db-init
+        image: mariadb:10.11
+        command:
+        - bash
+        - -c
+        - |
+          mysql -h mariadb.openstack-infra.svc.cluster.local -uroot -pchangeme123 <<EOF
+          CREATE DATABASE IF NOT EXISTS glance;
+          GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%' IDENTIFIED BY 'changeme123';
+          FLUSH PRIVILEGES;
+          EOF
+      - name: db-sync
+        image: kolla/glance:2024.1-ubuntu-jammy
+        command:
+        - glance-manage
+        - db_sync
+        volumeMounts:
+        - name: glance-config
+          mountPath: /etc/glance
+      containers:
+      - name: glance-api
+        image: kolla/glance:2024.1-ubuntu-jammy
+        ports:
+        - containerPort: 9292
+          name: api
+        command:
+        - glance-api
+        - --config-file=/etc/glance/glance-api.conf
+        volumeMounts:
+        - name: glance-config
+          mountPath: /etc/glance
+        - name: glance-images
+          mountPath: /var/lib/glance/images
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 9292
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 9292
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: glance-config
+        configMap:
+          name: glance-config
+      - name: glance-images
+        persistentVolumeClaim:
+          claimName: glance-images
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: glance-images
+  namespace: openstack
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi

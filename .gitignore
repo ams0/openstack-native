@@ -1,0 +1,48 @@
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
+.DS_Store
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# Build artifacts
+dist/
+build/
+*.pyc
+__pycache__/
+
+# Local configs
+local-config/
+*.local
+
+# Secrets (DO NOT COMMIT)
+secrets/
+*.key
+*.pem
+*.crt
+*.csr
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+
+# Helm
+charts/*.tgz
+
+# Logs
+*.log
+logs/
+
+# Test artifacts
+test-results/
+coverage/
+
+# OS
+Thumbs.db

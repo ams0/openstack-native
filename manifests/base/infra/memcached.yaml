@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: memcached
+  namespace: openstack-infra
+  labels:
+    app: memcached
+spec:
+  ports:
+    - port: 11211
+      targetPort: 11211
+      name: memcached
+  selector:
+    app: memcached
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memcached
+  namespace: openstack-infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: memcached
+  template:
+    metadata:
+      labels:
+        app: memcached
+    spec:
+      containers:
+      - name: memcached
+        image: memcached:1.6-alpine
+        ports:
+        - containerPort: 11211
+          name: memcached
+        command:
+        - memcached
+        - -m
+        - "512"
+        - -c
+        - "1024"
+        - -I
+        - "5m"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "100m"
+          limits:
+            memory: "1Gi"
+            cpu: "200m"
+        livenessProbe:
+          tcpSocket:
+            port: 11211
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 11211
+          initialDelaySeconds: 5
+          periodSeconds: 5

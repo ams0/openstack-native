@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openstack-infra
+  labels:
+    name: openstack-infra
+    app.kubernetes.io/part-of: openstack
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openstack
+  labels:
+    name: openstack
+    app.kubernetes.io/part-of: openstack

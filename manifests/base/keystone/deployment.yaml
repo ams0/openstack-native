@@ -1,0 +1,180 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keystone-config
+  namespace: openstack
+data:
+  keystone.conf: |
+    [DEFAULT]
+    log_config_append = /etc/keystone/logging.conf
+    
+    [database]
+    connection = mysql+pymysql://keystone:changeme123@mariadb.openstack-infra.svc.cluster.local/keystone
+    
+    [token]
+    provider = fernet
+    expiration = 3600
+    
+    [cache]
+    enabled = true
+    backend = dogpile.cache.memcached
+    memcache_servers = memcached.openstack-infra.svc.cluster.local:11211
+    
+    [catalog]
+    driver = sql
+    
+    [identity]
+    driver = sql
+    
+    [fernet_tokens]
+    key_repository = /etc/keystone/fernet-keys/
+    max_active_keys = 3
+  
+  logging.conf: |
+    [loggers]
+    keys = root, keystone
+    
+    [handlers]
+    keys = stdout
+    
+    [formatters]
+    keys = context, default
+    
+    [logger_root]
+    level = WARNING
+    handlers = stdout
+    
+    [logger_keystone]
+    level = INFO
+    qualname = keystone
+    handlers = stdout
+    propagate = 0
+    
+    [handler_stdout]
+    class = StreamHandler
+    args = (sys.stdout,)
+    formatter = context
+    
+    [formatter_context]
+    class = oslo_log.formatters.ContextFormatter
+    
+    [formatter_default]
+    format = %(message)s
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keystone
+  namespace: openstack
+  labels:
+    app: keystone
+spec:
+  ports:
+    - port: 5000
+      targetPort: 5000
+      name: api
+  selector:
+    app: keystone
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keystone
+  namespace: openstack
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: keystone
+  template:
+    metadata:
+      labels:
+        app: keystone
+    spec:
+      initContainers:
+      - name: db-init
+        image: mariadb:10.11
+        command:
+        - bash
+        - -c
+        - |
+          mysql -h mariadb.openstack-infra.svc.cluster.local -uroot -pchangeme123 <<EOF
+          CREATE DATABASE IF NOT EXISTS keystone;
+          GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY 'changeme123';
+          FLUSH PRIVILEGES;
+          EOF
+      - name: db-sync
+        image: kolla/keystone:2024.1-ubuntu-jammy
+        command:
+        - keystone-manage
+        - db_sync
+        volumeMounts:
+        - name: keystone-config
+          mountPath: /etc/keystone
+      - name: fernet-setup
+        image: kolla/keystone:2024.1-ubuntu-jammy
+        command:
+        - keystone-manage
+        - fernet_setup
+        - --keystone-user
+        - keystone
+        - --keystone-group
+        - keystone
+        volumeMounts:
+        - name: keystone-fernet-keys
+          mountPath: /etc/keystone/fernet-keys
+      - name: credential-setup
+        image: kolla/keystone:2024.1-ubuntu-jammy
+        command:
+        - keystone-manage
+        - credential_setup
+        - --keystone-user
+        - keystone
+        - --keystone-group
+        - keystone
+        volumeMounts:
+        - name: keystone-credential-keys
+          mountPath: /etc/keystone/credential-keys
+      containers:
+      - name: keystone
+        image: kolla/keystone:2024.1-ubuntu-jammy
+        ports:
+        - containerPort: 5000
+          name: api
+        env:
+        - name: KOLLA_CONFIG_STRATEGY
+          value: COPY_ALWAYS
+        volumeMounts:
+        - name: keystone-config
+          mountPath: /etc/keystone
+        - name: keystone-fernet-keys
+          mountPath: /etc/keystone/fernet-keys
+        - name: keystone-credential-keys
+          mountPath: /etc/keystone/credential-keys
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: keystone-config
+        configMap:
+          name: keystone-config
+      - name: keystone-fernet-keys
+        emptyDir: {}
+      - name: keystone-credential-keys
+        emptyDir: {}

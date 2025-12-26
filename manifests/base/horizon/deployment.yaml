@@ -1,0 +1,84 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: horizon-config
+  namespace: openstack
+data:
+  local_settings.py: |
+    import os
+    from horizon.utils import secret_key
+    
+    DEBUG = False
+    ALLOWED_HOSTS = ['*']
+    
+    OPENSTACK_HOST = "keystone.openstack.svc.cluster.local"
+    OPENSTACK_KEYSTONE_URL = "http://%s:5000/v3" % OPENSTACK_HOST
+    OPENSTACK_KEYSTONE_DEFAULT_ROLE = "member"
+    
+    OPENSTACK_API_VERSIONS = {
+        "identity": 3,
+        "image": 2,
+        "volume": 3,
+    }
+    
+    OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True
+    OPENSTACK_KEYSTONE_DEFAULT_DOMAIN = "Default"
+    
+    SECRET_KEY = secret_key.generate_or_read_from_file('/var/lib/horizon/.secret_key_store')
+    
+    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+            'LOCATION': 'memcached.openstack-infra.svc.cluster.local:11211',
+        },
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: horizon
+  namespace: openstack
+spec:
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http
+  selector:
+    app: horizon
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: horizon
+  namespace: openstack
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: horizon
+  template:
+    metadata:
+      labels:
+        app: horizon
+    spec:
+      containers:
+      - name: horizon
+        image: kolla/horizon:2024.1-ubuntu-jammy
+        ports:
+        - containerPort: 80
+          name: http
+        volumeMounts:
+        - name: horizon-config
+          mountPath: /etc/openstack-dashboard
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: horizon-config
+        configMap:
+          name: horizon-config

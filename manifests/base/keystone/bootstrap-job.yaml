@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keystone-bootstrap
+  namespace: openstack
+data:
+  bootstrap.sh: |
+    #!/bin/bash
+    set -e
+    
+    # Wait for Keystone to be ready
+    until curl -sf http://keystone.openstack.svc.cluster.local:5000/ > /dev/null; do
+      echo "Waiting for Keystone..."
+      sleep 5
+    done
+    
+    # Bootstrap Keystone
+    keystone-manage bootstrap \
+      --bootstrap-password changeme123 \
+      --bootstrap-admin-url http://keystone.openstack.svc.cluster.local:5000/v3/ \
+      --bootstrap-internal-url http://keystone.openstack.svc.cluster.local:5000/v3/ \
+      --bootstrap-public-url http://keystone.openstack.svc.cluster.local:5000/v3/ \
+      --bootstrap-region-id RegionOne
+    
+    echo "Keystone bootstrap completed successfully"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keystone-bootstrap
+  namespace: openstack
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: bootstrap
+        image: kolla/keystone:2024.1-ubuntu-jammy
+        command:
+        - /bin/bash
+        - /scripts/bootstrap.sh
+        volumeMounts:
+        - name: bootstrap-script
+          mountPath: /scripts
+        - name: keystone-config
+          mountPath: /etc/keystone
+      volumes:
+      - name: bootstrap-script
+        configMap:
+          name: keystone-bootstrap
+          defaultMode: 0755
+      - name: keystone-config
+        configMap:
+          name: keystone-config
