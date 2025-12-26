@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mariadb-operator-crds
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/mariadb-operator/mariadb-operator.git
+    targetRevision: v25.10.2
+    path: deploy/charts/mariadb-operator-crds
+    helm:
+      releaseName: mariadb-operator-crds
+      skipCrds: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mariadb-system
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - Replace=false
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  ignoreDifferences:
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      jqPathExpressions:
+        - .spec.conversion.webhook.clientConfig.caBundle
