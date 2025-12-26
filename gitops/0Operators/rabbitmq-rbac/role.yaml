@@ -1,0 +1,26 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: rabbitmq-operator-openstack
+  namespace: openstack
+rules:
+  # Core resources the operator manages in the watched namespace
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints", "configmaps", "secrets", "events", "persistentvolumeclaims", "serviceaccounts"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Pod exec for running rabbitmqctl commands
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  # Workloads
+  - apiGroups: ["apps"]
+    resources: ["statefulsets", "replicasets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Namespace RBAC objects the operator manages
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # RabbitMQ CRDs in the watched namespace
+  - apiGroups: ["rabbitmq.com"]
+    resources: ["rabbitmqclusters", "rabbitmqclusters/status", "rabbitmqclusters/finalizers"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]

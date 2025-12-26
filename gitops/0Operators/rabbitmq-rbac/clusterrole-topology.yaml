@@ -1,0 +1,33 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: rabbitmq-messaging-topology-operator
+rules:
+  # RabbitMQ topology CRDs
+  - apiGroups: ["rabbitmq.com"]
+    resources: 
+      - users
+      - vhosts
+      - bindings
+      - federations
+      - exchanges
+      - permissions
+      - topicpermissions
+      - schemareplications
+      - superstreams
+      - policies
+      - operatorpolicies
+      - shovels
+      - queues
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # RabbitMQ clusters (read-only)
+  - apiGroups: ["rabbitmq.com"]
+    resources: ["rabbitmqclusters", "rabbitmqclusters/status", "rabbitmqclusters/finalizers"]
+    verbs: ["get", "list", "watch"]
+  # Core resources needed by the operator
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["statefulsets", "deployments"]
+    verbs: ["get", "list", "watch"]

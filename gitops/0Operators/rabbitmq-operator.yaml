@@ -1,0 +1,91 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rabbitmq-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/rabbitmq/cluster-operator.git
+      path: config/crd/bases
+      targetRevision: main
+    - repoURL: https://github.com/rabbitmq/messaging-topology-operator.git
+      path: config/crd/bases
+      targetRevision: main
+    - repoURL: https://adeptia.github.io/rabbitmq-cluster-operator-helm-package/charts/
+      targetRevision: "4.7"
+      chart: rabbitmq-cluster-operator
+      helm:
+        releaseName: rabbitmq-operator
+        values: |
+          clusterOperator:
+            watchAllNamespaces: false
+            watchNamespaces:
+              - openstack
+            serviceAccount:
+              create: true
+              name: rabbitmq-operator
+            rbac:
+              clusterRole:
+                customRules:
+                  - apiGroups: ["rbac.authorization.k8s.io"]
+                    resources: ["roles", "rolebindings"]
+                    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+                  - apiGroups: ["apps"]
+                    resources: ["statefulsets", "replicasets"]
+                    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+                  - apiGroups: [""]
+                    resources: ["pods", "services", "endpoints", "configmaps", "secrets", "events", "persistentvolumeclaims", "serviceaccounts"]
+                    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+                  - apiGroups: ["rabbitmq.com"]
+                    resources: ["rabbitmqclusters", "rabbitmqclusters/status", "rabbitmqclusters/finalizers"]
+                    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+          msgTopologyOperator:
+            watchAllNamespaces: false
+            watchNamespaces:
+              - openstack
+            rbac:
+              clusterRole:
+                create: true
+                customRules:
+                  - apiGroups: ["rabbitmq.com"]
+                    resources: ["users"]
+                    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+                  - apiGroups: ["rabbitmq.com"]
+                    resources: ["vhosts", "bindings", "federations", "exchanges", "permissions", "topicpermissions", "schemareplications", "superstreams", "policies", "shovels", "queues"]
+                    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+                  - apiGroups: ["rabbitmq.com"]
+                    resources: ["rabbitmqclusters", "rabbitmqclusters/status", "rabbitmqclusters/finalizers"]
+                    verbs: ["get", "list", "watch"]
+                  - apiGroups: ["apps"]
+                    resources: ["statefulsets", "deployments"]
+                    verbs: ["get", "list", "watch"]
+                  - apiGroups: [""]
+                    resources: ["pods", "services", "endpoints", "configmaps", "secrets"]
+                    verbs: ["get", "list", "watch"]
+    - repoURL: https://github.com/ams0/openstack-native.git
+      targetRevision: main
+      path: gitops/rabbitmq/operator/rbac
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: rabbitmq-operator
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
