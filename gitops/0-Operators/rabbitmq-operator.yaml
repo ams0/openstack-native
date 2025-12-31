@@ -8,12 +8,6 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: https://github.com/rabbitmq/cluster-operator.git
-      path: config/crd/bases
-      targetRevision: main
-    - repoURL: https://github.com/rabbitmq/messaging-topology-operator.git
-      path: config/crd/bases
-      targetRevision: main
     - repoURL: https://github.com/ams0/openstack-native.git
       targetRevision: main
       path: kustomizations/rabbitmq
