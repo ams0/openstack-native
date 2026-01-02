@@ -107,13 +107,11 @@ spec:
             passwordSecretKeyRef:
               name: mariadb-glance-user
               key: password
-              generate: true
             host: "%"
           - name: placement
             passwordSecretKeyRef:
               name: mariadb-placement-user
               key: password
-              generate: true
             host: "%"
 
 
