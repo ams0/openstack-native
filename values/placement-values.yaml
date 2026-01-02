@@ -1,0 +1,70 @@
+# OpenStack-Helm Placement values for fresh cluster
+labels:
+  api:
+    node_selector_key: kubernetes.io/os
+    node_selector_value: linux
+  job:
+    node_selector_key: kubernetes.io/os
+    node_selector_value: linux
+  test:
+    node_selector_key: kubernetes.io/os
+    node_selector_value: linux
+
+endpoints:
+  # Memcached configuration
+  oslo_cache:
+    hosts:
+      default: memcached-service
+    port:
+      memcache:
+        default: 11211
+
+  # MariaDB configuration
+  # Note: Placement does NOT use RabbitMQ
+  oslo_db:
+    scheme: mysql+pymysql
+    hosts:
+      default: mariadb-basic
+    port:
+      mysql:
+        default: 3306
+    path: /placement
+    auth:
+      placement:
+        username: placement
+        password: placement  # Helm will create user with this password
+      admin:
+        # Get root password from: kubectl get secret -n openstack mariadb-basic-root
+        username: root
+        password: 1t{Tqs3d0aPe4k-u
+
+  # Keystone configuration
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      placement:
+        role: admin
+        region_name: RegionOne
+        username: placement
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone
+      internal: keystone-api
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 5000

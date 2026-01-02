@@ -1,0 +1,111 @@
+# OpenStack-Helm Glance values for fresh cluster
+# Storage backend - using 'pvc' for persistent volume
+storage: pvc
+
+labels:
+  api:
+    node_selector_key: kubernetes.io/os
+    node_selector_value: linux
+  job:
+    node_selector_key: kubernetes.io/os
+    node_selector_value: linux
+  test:
+    node_selector_key: kubernetes.io/os
+    node_selector_value: linux
+
+# Storage volume configuration for PVC backend
+volume:
+  class_name: standard
+  size: 10Gi
+
+endpoints:
+  # Memcached configuration
+  oslo_cache:
+    hosts:
+      default: memcached-service
+    port:
+      memcache:
+        default: 11211
+
+  # RabbitMQ configuration
+  oslo_messaging:
+    scheme: rabbit
+    hosts:
+      default: openstack-rabbitmq
+    port:
+      amqp:
+        default: 5672
+    path: /glance
+    auth:
+      admin:
+        # Get these from: kubectl get secret -n openstack openstack-rabbitmq-default-user
+        username: default_user_P2T5Hek-T9Pmk7uTYB1
+        password: AGYM3yJLS7ER5qvZ4Od0I0wexIvtI413
+      glance:
+        username: glance
+        password: glance
+
+  # MariaDB configuration
+  oslo_db:
+    scheme: mysql+pymysql
+    hosts:
+      default: mariadb-basic
+    port:
+      mysql:
+        default: 3306
+    path: /glance
+    auth:
+      glance:
+        username: glance
+        password: glance  # Helm will create user with this password
+      admin:
+        # Get root password from: kubectl get secret -n openstack mariadb-basic-root
+        username: root
+        password: 1t{Tqs3d0aPe4k-u
+
+  # Keystone configuration
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      glance:
+        role: admin
+        region_name: RegionOne
+        username: glance
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone
+      internal: keystone-api
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 5000
+
+conf:
+  # Disable RabbitMQ HA policies for single-node setup
+  rabbitmq:
+    policies: []
+
+  # Glance API configuration
+  glance:
+    DEFAULT:
+      show_image_direct_url: true
+      show_multiple_locations: false
+    glance_store:
+      # For PVC storage backend
+      filesystem_store_datadir: /var/lib/glance/images
+      default_backend: file
+      stores: file,http

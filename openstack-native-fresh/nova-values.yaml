@@ -1,0 +1,278 @@
+# Nova Helm Chart Values Override
+# Updated for kubernetes.io/os node selectors and correct service names
+
+labels:
+  agent:
+    compute:
+      node_selector_key: kubernetes.io/os
+      node_selector_value: linux
+    compute_ironic:
+      node_selector_key: kubernetes.io/os
+      node_selector_value: linux
+  api_metadata:
+    node_selector_key: kubernetes.io/os
+    node_selector_value: linux
+  conductor:
+    node_selector_key: kubernetes.io/os
+    node_selector_value: linux
+  job:
+    node_selector_key: kubernetes.io/os
+    node_selector_value: linux
+  novncproxy:
+    node_selector_key: kubernetes.io/os
+    node_selector_value: linux
+  osapi:
+    node_selector_key: kubernetes.io/os
+    node_selector_value: linux
+  scheduler:
+    node_selector_key: kubernetes.io/os
+    node_selector_value: linux
+  serialproxy:
+    node_selector_key: kubernetes.io/os
+    node_selector_value: linux
+  spiceproxy:
+    node_selector_key: kubernetes.io/os
+    node_selector_value: linux
+  test:
+    node_selector_key: kubernetes.io/os
+    node_selector_value: linux
+
+endpoints:
+  # MariaDB endpoint - use existing MariaDB service with correct password
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: "1t{Tqs3d0aPe4k-u"
+      nova:
+        username: nova
+        password: nova
+    hosts:
+      default: mariadb-basic
+
+  oslo_db_api:
+    auth:
+      admin:
+        username: root
+        password: "1t{Tqs3d0aPe4k-u"
+      nova:
+        username: nova
+        password: nova
+    hosts:
+      default: mariadb-basic
+
+  oslo_db_cell0:
+    auth:
+      admin:
+        username: root
+        password: "1t{Tqs3d0aPe4k-u"
+      nova:
+        username: nova
+        password: nova
+    hosts:
+      default: mariadb-basic
+
+  # RabbitMQ endpoint - use existing RabbitMQ service with correct password
+  oslo_messaging:
+    auth:
+      admin:
+        username: default_user_P2T5Hek-T9Pmk7uTYB1
+        password: AGYM3yJLS7ER5qvZ4Od0I0wexIvtI413
+      nova:
+        username: nova
+        password: nova
+    hosts:
+      default: openstack-rabbitmq
+
+  # Identity endpoint
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      nova:
+        role: admin
+        region_name: RegionOne
+        username: nova
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+      neutron:
+        role: admin
+        region_name: RegionOne
+        username: neutron
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+      placement:
+        role: admin
+        region_name: RegionOne
+        username: placement
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone
+      internal: keystone-api
+    host_fqdn_override:
+      default: null
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 5000
+
+  # Image endpoint
+  image:
+    name: glance
+    hosts:
+      default: glance-api
+      public: glance
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      api:
+        default: 9292
+        public: 80
+
+  # Network endpoint
+  network:
+    name: neutron
+    hosts:
+      default: neutron-server
+      public: neutron
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      api:
+        default: 9696
+        public: 80
+
+  # Placement endpoint
+  placement:
+    name: placement
+    hosts:
+      default: placement-api
+      public: placement
+    host_fqdn_override:
+      default: null
+    path:
+      default: /
+    scheme:
+      default: http
+    port:
+      api:
+        default: 8778
+        public: 80
+
+  # Compute endpoint
+  compute:
+    name: nova
+    hosts:
+      default: nova-api
+      public: nova
+    host_fqdn_override:
+      default: null
+    path:
+      default: "/v2.1/%(tenant_id)s"
+    scheme:
+      default: http
+    port:
+      api:
+        default: 8774
+        public: 80
+      novncproxy:
+        default: 6080
+
+  # Metadata endpoint
+  compute_metadata:
+    name: nova
+    hosts:
+      default: nova-metadata
+      public: metadata
+    host_fqdn_override:
+      default: null
+    path:
+      default: /
+    scheme:
+      default: http
+    port:
+      metadata:
+        default: 8775
+        public: 80
+
+# Nova configuration
+conf:
+  # Disable RabbitMQ HA policies (not compatible with RabbitMQ 4.x)
+  rabbitmq:
+    policies: []
+
+  nova:
+    DEFAULT:
+      # Enable metadata service
+      enabled_apis: osapi_compute,metadata
+      # Use neutron for networking
+      use_neutron: true
+      # VNC configuration
+      vnc_enabled: true
+      vncserver_proxyclient_address: "0.0.0.0"
+      # Scheduler configuration
+      scheduler_default_filters: AvailabilityZoneFilter,ComputeFilter,ComputeCapabilitiesFilter,ImagePropertiesFilter,ServerGroupAntiAffinityFilter,ServerGroupAffinityFilter
+
+# Pod configuration - increase file descriptor limits
+pod:
+  security_context:
+    nova_rabbit_init:
+      pod:
+        runAsUser: 65534
+      container:
+        rabbit_init:
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: false
+  resources:
+    rabbit_init:
+      limits:
+        cpu: "2000m"
+        memory: "1024Mi"
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+
+# Manifests - Control Plane Only (disable compute nodes)
+manifests:
+  daemonset_compute: false           # Disable nova-compute (runs on worker nodes)
+  daemonset_compute_ironic: false    # Disable ironic compute
+  statefulset_compute_ironic: false  # Disable ironic statefulset
+
+  # Keep control plane components enabled
+  deployment_api_metadata: true
+  deployment_api_osapi: true
+  deployment_conductor: true
+  deployment_novncproxy: true
+  deployment_scheduler: true
+  job_db_init: true
+  job_db_sync: true
+  job_ks_endpoints: true
+  job_ks_service: true
+  job_ks_user: true
+  job_rabbit_init: false             # Skip rabbit-init (RabbitMQ already initialized by other services)
+  cron_job_cell_setup: true

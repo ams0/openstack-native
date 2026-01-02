@@ -1,0 +1,224 @@
+# OpenStack-Helm Neutron values for Control Plane Only
+# This configuration deploys only the Neutron Server (API)
+# L2/L3/DHCP/Metadata agents will run on bare metal compute nodes
+
+labels:
+  server:
+    node_selector_key: kubernetes.io/os
+    node_selector_value: linux
+  job:
+    node_selector_key: kubernetes.io/os
+    node_selector_value: linux
+  test:
+    node_selector_key: kubernetes.io/os
+    node_selector_value: linux
+
+# Network backend - will be handled by agents on compute nodes
+# This just configures the ML2 plugin for neutron-server
+network:
+  backend: []  # No local backend needed for control plane only
+
+# Neutron Server configuration
+conf:
+  neutron:
+    DEFAULT:
+      core_plugin: ml2
+      service_plugins: router,segments
+      # Allow overlapping IPs for tenant networks
+      allow_overlapping_ips: True
+      # API workers
+      api_workers: 4
+      rpc_workers: 4
+
+  plugins:
+    ml2_conf:
+      ml2:
+        # Type drivers - what network types are available
+        type_drivers: flat,vlan,vxlan,gre
+        # Tenant network types - what tenants can create
+        tenant_network_types: vxlan,vlan
+        # Mechanism drivers - how networks are implemented
+        # Configure based on what your compute nodes will use
+        mechanism_drivers: openvswitch,linuxbridge,l2population
+        # Extensions
+        extension_drivers: port_security,dns_domain_ports
+
+      # Configure network type ranges
+      ml2_type_flat:
+        # Flat networks available (for provider/external networks)
+        flat_networks: public,external
+
+      ml2_type_vlan:
+        # VLAN ranges for provider networks
+        network_vlan_ranges: public:1:4094,external:1:4094
+
+      ml2_type_vxlan:
+        # VNI ranges for tenant networks
+        vni_ranges: 1:100000
+
+      ml2_type_gre:
+        # GRE tunnel ID ranges
+        tunnel_id_ranges: 1:100000
+
+  # Disable RabbitMQ HA policies for single-node setup
+  rabbitmq:
+    policies: []
+
+endpoints:
+  # Memcached configuration
+  oslo_cache:
+    hosts:
+      default: memcached-service
+    port:
+      memcache:
+        default: 11211
+
+  # RabbitMQ configuration
+  oslo_messaging:
+    scheme: rabbit
+    hosts:
+      default: openstack-rabbitmq
+    port:
+      amqp:
+        default: 5672
+    path: /neutron
+    auth:
+      admin:
+        username: RABBITMQ_ADMIN_USER
+        password: RABBITMQ_ADMIN_PASSWORD
+      neutron:
+        username: neutron
+        password: neutron
+
+  # MariaDB configuration
+  oslo_db:
+    scheme: mysql+pymysql
+    hosts:
+      default: mariadb-basic
+    port:
+      mysql:
+        default: 3306
+    path: /neutron
+    auth:
+      neutron:
+        username: neutron
+        password: neutron
+      admin:
+        username: root
+        password: MARIADB_ROOT_PASSWORD
+
+  # Keystone configuration
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      neutron:
+        role: admin
+        region_name: RegionOne
+        username: neutron
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+      nova:
+        role: admin
+        region_name: RegionOne
+        username: nova
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone
+      internal: keystone-api
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 5000
+
+  # Nova configuration (for notifications)
+  compute:
+    name: nova
+    hosts:
+      default: nova-api
+      public: nova
+    host_fqdn_override:
+      default: null
+    path:
+      default: "/v2.1"
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 8774
+        public: 80
+      metadata:
+        default: 8775
+
+  # Neutron API endpoint
+  network:
+    name: neutron
+    hosts:
+      default: neutron-server
+      public: neutron
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 9696
+        public: 80
+
+# Pod resources
+pod:
+  resources:
+    enabled: true
+    server:
+      requests:
+        memory: "256Mi"
+        cpu: "500m"
+      limits:
+        memory: "2048Mi"
+        cpu: "2000m"
+
+# Manifests - CONTROL PLANE ONLY
+# Disable all agents - they'll run on bare metal compute nodes
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+  deployment_server: true            # ✅ API Server - YES
+  ingress_server: false
+  job_bootstrap: false
+  job_db_init: true                  # ✅ Database init - YES
+  job_db_sync: true                  # ✅ Database sync - YES
+  job_db_drop: false
+  job_image_repo_sync: false
+  job_ks_endpoints: true             # ✅ Keystone endpoints - YES
+  job_ks_service: true               # ✅ Keystone service - YES
+  job_ks_user: true                  # ✅ Keystone user - YES
+  job_rabbit_init: true              # ✅ RabbitMQ init - YES
+  pdb_server: false
+  pod_rally_test: false
+  service_ingress_server: false
+  service_server: true               # ✅ API Service - YES
+
+  # ❌ DISABLE ALL AGENTS - Will run on bare metal
+  daemonset_dhcp_agent: false        # ❌ Run on compute nodes or centralized
+  daemonset_l3_agent: false          # ❌ Run on compute nodes or centralized
+  daemonset_lb_agent: false          # ❌ Run on compute nodes
+  daemonset_metadata_agent: false    # ❌ Run on compute nodes or centralized
+  daemonset_ovs_agent: false         # ❌ Run on compute nodes
+  daemonset_sriov_agent: false       # ❌ SR-IOV (if needed) on compute nodes
