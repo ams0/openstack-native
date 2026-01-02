@@ -84,6 +84,12 @@ spec:
           - name: "keystone"
             characterSet: utf8mb4
             collate: utf8mb4_unicode_ci
+          - name: "glance"
+            characterSet: utf8mb4
+            collate: utf8mb4_unicode_ci
+          - name: "placement"
+            characterSet: utf8mb4
+            collate: utf8mb4_unicode_ci
 
         # Create a default user
         users:
@@ -97,7 +103,19 @@ spec:
               name: mariadb-keystone-user
               key: password
             host: "%"
-          
+          - name: glance
+            passwordSecretKeyRef:
+              name: mariadb-glance-user
+              key: password
+              generate: true
+            host: "%"
+          - name: placement
+            passwordSecretKeyRef:
+              name: mariadb-placement-user
+              key: password
+              generate: true
+            host: "%"
+
 
         # Grant privileges to the user
         grants:
@@ -115,6 +133,22 @@ spec:
             database: "keystone"
             table: "*"
             username: keystone
+            host: "%"
+            grantOption: false
+          - name: glance-grants
+            privileges:
+              - "ALL PRIVILEGES"
+            database: "glance"
+            table: "*"
+            username: glance
+            host: "%"
+            grantOption: false
+          - name: placement-grants
+            privileges:
+              - "ALL PRIVILEGES"
+            database: "placement"
+            table: "*"
+            username: placement
             host: "%"
             grantOption: false
 
