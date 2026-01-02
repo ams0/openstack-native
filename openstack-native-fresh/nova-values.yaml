@@ -81,6 +81,7 @@ endpoints:
       nova:
         username: nova
         password: nova
+    statefulset: null
     hosts:
       default: openstack-rabbitmq
 
@@ -269,10 +270,21 @@ manifests:
   deployment_conductor: true
   deployment_novncproxy: true
   deployment_scheduler: true
+  job_storage_init: false            # Disable Ceph storage init for qcow2/non-Ceph setup
   job_db_init: true
   job_db_sync: true
   job_ks_endpoints: true
   job_ks_service: true
   job_ks_user: true
-  job_rabbit_init: false             # Skip rabbit-init (RabbitMQ already initialized by other services)
-  cron_job_cell_setup: true
+  job_rabbit_init: true              # Needed for nova vhost/user setup
+  job_cell_setup: false
+  cron_job_cell_setup: false
+
+# Keep jobs as standard resources so init containers can resolve them.
+helm3_hook: false
+
+# Control-plane-only: remove dependency on compute pods during cell setup.
+dependencies:
+  static:
+    cell_setup:
+      pod: []
