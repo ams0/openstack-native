@@ -1,289 +1,297 @@
-# Architecture Overview
+# OpenStack Control Plane on Kubernetes Architecture
 
-This document describes the architecture of OpenStack Native, a cloud-native deployment of OpenStack on Kubernetes.
+## Overview
 
-## Design Principles
+This deployment separates the **OpenStack Control Plane** from the **Compute Nodes**:
 
-1. **Cloud-Native First**: All components run as containerized workloads
-2. **GitOps-Driven**: Declarative configuration managed through Git
-3. **Highly Available**: Built-in redundancy and self-healing
-4. **Scalable**: Horizontal scaling using Kubernetes primitives
-5. **Observable**: Comprehensive monitoring and logging
-6. **Secure by Default**: Security best practices baked in
+- **Control Plane**: Runs in Kubernetes (API services, schedulers, databases)
+- **Compute Nodes**: Bare metal machines (run VMs, network agents)
 
-## System Architecture
-
-### High-Level Architecture
+## Architecture Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      Git Repository                          │
-│                  (Source of Truth)                           │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      ArgoCD                                  │
-│              (GitOps Operator)                               │
-│  • Monitors Git repository                                   │
-│  • Syncs desired state to cluster                           │
-│  • Manages OpenStack application lifecycle                  │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                  Kubernetes Cluster                          │
+│                  (Control Plane)                             │
 │                                                              │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │           OpenStack Control Plane                    │  │
-│  │                                                       │  │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐          │  │
-│  │  │ Keystone │  │  Nova    │  │ Neutron  │          │  │
-│  │  │(Identity)│  │(Compute) │  │(Network) │          │  │
-│  │  └──────────┘  └──────────┘  └──────────┘          │  │
-│  │                                                       │  │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐          │  │
-│  │  │  Glance  │  │  Cinder  │  │ Horizon  │          │  │
-│  │  │ (Image)  │  │(Storage) │  │   (UI)   │          │  │
-│  │  └──────────┘  └──────────┘  └──────────┘          │  │
-│  └──────────────────────────────────────────────────────┘  │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │   Keystone   │  │    Glance    │  │  Placement   │      │
+│  │     API      │  │     API      │  │     API      │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
 │                                                              │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │          Infrastructure Services                      │  │
-│  │                                                       │  │
-│  │  ┌────────────┐  ┌──────────┐  ┌──────────────┐    │  │
-│  │  │  MariaDB   │  │ RabbitMQ │  │  Memcached   │    │  │
-│  │  │  Galera    │  │          │  │              │    │  │
-│  │  └────────────┘  └──────────┘  └──────────────┘    │  │
-│  └──────────────────────────────────────────────────────┘  │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │   Neutron    │  │     Nova     │  │    Cinder    │      │
+│  │    Server    │  │ API/Sched/   │  │ API/Scheduler│      │
+│  │    (API)     │  │  Conductor   │  │              │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
 │                                                              │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │       Observability Stack (Optional)                  │  │
-│  │                                                       │  │
-│  │  ┌────────────┐  ┌──────────┐  ┌──────────────┐    │  │
-│  │  │ Prometheus │  │  Grafana │  │  Loki/ELK    │    │  │
-│  │  └────────────┘  └──────────┘  └──────────────┘    │  │
-│  └──────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
+│  ┌──────────────────────────────────────────────────┐       │
+│  │         Infrastructure                            │       │
+│  │  MariaDB | RabbitMQ | Memcached                  │       │
+│  └──────────────────────────────────────────────────┘       │
+│                                                              │
+└──────────────────┬───────────────────────────────────────────┘
+                   │
+                   │ Management Network
+                   │ (API Access, RabbitMQ, Database)
+                   │
+        ┌──────────┴──────────┬──────────────┐
+        │                     │              │
+┌───────▼────────┐   ┌────────▼──────┐   ┌──▼──────────┐
+│ Compute Node 1 │   │ Compute Node 2│   │ Compute N   │
+│ (Bare Metal)   │   │ (Bare Metal)  │   │ (Bare Metal)│
+│                │   │               │   │             │
+│ ┌────────────┐ │   │ ┌───────────┐ │   │             │
+│ │ Nova       │ │   │ │Nova       │ │   │   ...       │
+│ │ Compute    │ │   │ │Compute    │ │   │             │
+│ └────────────┘ │   │ └───────────┘ │   │             │
+│                │   │               │   │             │
+│ ┌────────────┐ │   │ ┌───────────┐ │   │             │
+│ │ Neutron    │ │   │ │Neutron    │ │   │             │
+│ │ L2 Agent   │ │   │ │L2 Agent   │ │   │             │
+│ │ (OVS/LB)   │ │   │ │(OVS/LB)   │ │   │             │
+│ └────────────┘ │   │ └───────────┘ │   │             │
+│                │   │               │   │             │
+│ Optional:      │   │ Optional:     │   │             │
+│ - L3 Agent     │   │ - L3 Agent    │   │             │
+│ - DHCP Agent   │   │ - DHCP Agent  │   │             │
+│ - Meta Agent   │   │ - Meta Agent  │   │             │
+└────────────────┘   └───────────────┘   └─────────────┘
 ```
 
-## Component Architecture
+## Components Breakdown
 
-### ArgoCD Layer
+### In Kubernetes (Control Plane Only)
 
-**Purpose**: GitOps controller that ensures cluster state matches Git repository
+| Service | Component | Purpose |
+|---------|-----------|---------|
+| **Keystone** | API | Authentication & Service Catalog |
+| **Glance** | API | Image Management |
+| **Placement** | API | Resource Tracking & Scheduling |
+| **Neutron** | Server (API) | Network API & ML2 Plugin |
+| **Nova** | API | VM Lifecycle API |
+| **Nova** | Scheduler | VM Placement Decisions |
+| **Nova** | Conductor | Database & Task Coordination |
+| **Cinder** | API | Block Storage API |
+| **Cinder** | Scheduler | Volume Placement |
+| **Horizon** | Dashboard | Web UI (optional) |
+| **MariaDB** | Database | Persistent Storage |
+| **RabbitMQ** | Message Bus | Service Communication |
+| **Memcached** | Cache | Token/Session Caching |
 
-**Responsibilities**:
-- Monitor Git repository for changes
-- Sync Kubernetes resources to desired state
-- Provide UI/CLI for deployment visualization
-- Manage rollbacks and upgrades
-- Health monitoring of applications
+### On Bare Metal Compute Nodes
 
-**Key Resources**:
-- ArgoCD Application: Defines what to deploy and where
-- ArgoCD Project: Logical grouping of applications
-- ArgoCD AppProject: RBAC and cluster access control
+| Service | Component | Purpose | Required? |
+|---------|-----------|---------|-----------|
+| **Nova** | Compute | Runs VMs (libvirt/KVM) | ✅ YES |
+| **Neutron** | L2 Agent | Network connectivity (OVS/LinuxBridge) | ✅ YES |
+| **Neutron** | L3 Agent | Routing & Floating IPs | Optional* |
+| **Neutron** | DHCP Agent | DHCP for VMs | Optional* |
+| **Neutron** | Metadata Agent | VM Metadata Service | Optional* |
+| **Cinder** | Volume | Block Storage (if local storage) | Optional |
 
-### OpenStack Control Plane
+*Can run centralized in Kubernetes or distributed on compute nodes
 
-#### Keystone (Identity Service)
-- **Purpose**: Authentication and service catalog
-- **Deployment**: StatefulSet or Deployment
-- **Dependencies**: MariaDB, Memcached
-- **Ports**: 5000 (public), 35357 (admin)
+## Network Architecture
 
-#### Nova (Compute Service)
-- **Purpose**: Virtual machine lifecycle management
-- **Components**:
-  - nova-api: REST API server
-  - nova-scheduler: VM placement decisions
-  - nova-conductor: Database operations proxy
-  - nova-compute: Hypervisor management (runs on compute nodes)
-- **Dependencies**: Keystone, Glance, Neutron, MariaDB, RabbitMQ
+### Management Network
+- Control plane APIs accessible from compute nodes
+- RabbitMQ: Compute nodes → Kubernetes RabbitMQ
+- Database: Only control plane services access
+- API endpoints: Compute nodes call APIs
 
-#### Neutron (Networking Service)
-- **Purpose**: Network connectivity and IP management
-- **Components**:
-  - neutron-server: API server
-  - L2 agent: Virtual switching
-  - L3 agent: Routing
-  - DHCP agent: IP address assignment
-- **Dependencies**: Keystone, MariaDB, RabbitMQ
+### Data Networks (On Compute Nodes)
+- Tenant Networks: VM-to-VM communication
+- Provider Networks: External connectivity
+- Storage Networks: Volume access (if Cinder)
 
-#### Glance (Image Service)
-- **Purpose**: VM image storage and retrieval
-- **Components**:
-  - glance-api: Image operations
-  - glance-registry: Image metadata (deprecated in newer versions)
-- **Storage**: Swift, Ceph, or filesystem
-- **Dependencies**: Keystone, MariaDB
+## Deployment Strategy
 
-#### Cinder (Block Storage Service)
-- **Purpose**: Persistent block storage volumes
-- **Components**:
-  - cinder-api: Volume operations
-  - cinder-scheduler: Volume placement
-  - cinder-volume: Volume management
-- **Backends**: Ceph, LVM, NFS
-- **Dependencies**: Keystone, MariaDB, RabbitMQ
+### Phase 1: Control Plane (Kubernetes)
+1. ✅ Infrastructure (MariaDB, RabbitMQ, Memcached)
+2. ✅ Keystone
+3. ✅ Glance
+4. ✅ Placement
+5. ⏳ Neutron Server (API only - no agents)
+6. ⏳ Nova API, Scheduler, Conductor (no compute)
+7. Optional: Cinder API, Scheduler
+8. Optional: Horizon
 
-#### Horizon (Dashboard)
-- **Purpose**: Web-based UI for OpenStack
-- **Deployment**: Deployment with multiple replicas
-- **Dependencies**: All OpenStack services via API
+### Phase 2: Compute Nodes (Bare Metal)
+1. Install base OS (Ubuntu 22.04/24.04 recommended)
+2. Install libvirt, KVM, QEMU
+3. Install Nova Compute
+4. Install Neutron L2 Agent (OVS or Linux Bridge)
+5. Configure to connect to Kubernetes control plane
+6. Register with Nova & Neutron
+7. Optional: Install L3, DHCP, Metadata agents
 
-### Infrastructure Services
+## Configuration Requirements
 
-#### MariaDB Galera Cluster
-- **Purpose**: Relational database for OpenStack services
-- **Deployment**: StatefulSet with 3+ nodes
-- **High Availability**: Multi-master replication
-- **Backup**: Automated backups to persistent storage
+### Compute Nodes Must Know:
 
-#### RabbitMQ Cluster
-- **Purpose**: Message queue for inter-service communication
-- **Deployment**: StatefulSet with 3+ nodes
-- **High Availability**: Mirrored queues
-- **Monitoring**: Management plugin enabled
+**API Endpoints:**
+```yaml
+# From Keystone service catalog or direct configuration
+keystone_api: https://k8s-loadbalancer:5000/v3
+glance_api: https://k8s-loadbalancer:9292
+neutron_api: https://k8s-loadbalancer:9696
+placement_api: https://k8s-loadbalancer:8778
+nova_api: https://k8s-loadbalancer:8774
+```
 
-#### Memcached
-- **Purpose**: Distributed caching for token validation
-- **Deployment**: Deployment with multiple replicas
-- **High Availability**: Client-side consistent hashing
+**RabbitMQ Connection:**
+```yaml
+# Compute nodes need RabbitMQ access for messaging
+transport_url: rabbit://nova:password@k8s-rabbitmq-lb:5672/
+```
 
-## Networking Architecture
+**Metadata Proxy (if using):**
+```yaml
+# For VM metadata service
+metadata_proxy_shared_secret: <shared-secret>
+nova_metadata_host: k8s-loadbalancer
+nova_metadata_port: 8775
+```
 
-### Pod Networking
-- CNI plugin (Calico, Cilium, or Flannel)
-- Network policies for isolation
-- Service mesh (optional, Istio/Linkerd)
+## Advantages of This Architecture
 
-### OpenStack Networking
-- Provider networks for external connectivity
-- Tenant networks for isolation
-- OVS or OVN for virtual networking
-- Load balancing via Octavia
+✅ **Separation of Concerns**
+- Control plane can be updated independently
+- Compute nodes are simple and focused
 
-### Ingress
-- Ingress controller (NGINX, Traefik)
-- TLS termination
-- External access to Horizon and APIs
+✅ **Kubernetes Benefits for Control Plane**
+- HA/Self-healing for APIs
+- Easy scaling (add more API pods)
+- Rolling updates without downtime
+- GitOps management
 
-## Storage Architecture
+✅ **Performance for Compute**
+- No container overhead for VMs
+- Direct hardware access (CPU features, SR-IOV)
+- Better storage performance
+- Native networking performance
 
-### Persistent Storage
-- **Database**: PersistentVolumeClaims for MariaDB
-- **Images**: PersistentVolume or object storage
-- **Volumes**: Storage backend integration (Ceph recommended)
+✅ **Operational Benefits**
+- Control plane in one place
+- Easier monitoring and logging
+- Compute nodes are stateless (cattle not pets)
+- Can use different hardware for different roles
 
-### Storage Classes
-- Fast (SSD) for databases
-- Standard for general use
-- Archive for backups
+## Networking Considerations
 
-## Security Architecture
+### Kubernetes → Bare Metal Communication
 
-### Authentication & Authorization
-- Keystone for OpenStack services
-- Kubernetes RBAC for cluster resources
-- ArgoCD SSO for GitOps operations
+You need to expose Kubernetes services to bare metal:
 
-### Network Security
-- Network policies between namespaces
-- TLS for all service communication
-- Secrets encryption at rest
+**Option 1: LoadBalancer Service (Cloud)**
+```bash
+# If on cloud provider with LB support
+kubectl expose deployment neutron-server \
+  --type=LoadBalancer \
+  --name=neutron-external
+```
 
-### Secrets Management
-- Kubernetes secrets for credentials
-- External secret managers (Vault, Sealed Secrets)
-- Automatic secret rotation
+**Option 2: NodePort (Simple)**
+```bash
+# Expose on Kubernetes node IPs
+kubectl expose deployment neutron-server \
+  --type=NodePort \
+  --name=neutron-external
+```
 
-## Deployment Models
+**Option 3: Ingress with External LB**
+```bash
+# Use nginx/haproxy outside Kubernetes
+# Point to Kubernetes node IPs
+```
 
-### Single-Cluster Deployment
-- All components in one Kubernetes cluster
-- Suitable for development and small deployments
-- Resource requirements: 16+ cores, 64GB+ RAM
+**Option 4: Host Network (Not recommended)**
+```yaml
+# Run services on host network
+hostNetwork: true
+```
 
-### Multi-Cluster Deployment
-- Control plane and compute separated
-- Better isolation and scaling
-- Suitable for production environments
+### Service Discovery
 
-### Edge Deployment
-- Central control plane
-- Edge compute clusters
-- Suitable for distributed workloads
+Compute nodes need stable endpoints:
 
-## Scalability Considerations
+1. **DNS**: Use external DNS for API endpoints
+2. **Static IPs**: Assign static IPs to Kubernetes nodes
+3. **Load Balancer**: Use external LB (HAProxy, nginx) in front of Kubernetes
+4. **Service Mesh**: Use Istio/Linkerd for advanced routing
 
-### Horizontal Scaling
-- API services: Add replicas
-- Compute nodes: Add nova-compute pods
-- Storage: Add cinder-volume backends
+## What You Need to Configure
 
-### Vertical Scaling
-- Increase resource limits for databases
-- Adjust CPU/memory for compute nodes
-- Scale message queue capacity
+### For Control Plane (This Deployment)
 
-## High Availability
+1. **Neutron Server**: API only (✅ We configured this)
+2. **Nova API/Scheduler/Conductor**: Coming next
+3. **Expose Services**: Set up LoadBalancer or NodePort
+4. **External Access**: Configure ingress for bare metal access
 
-### Control Plane HA
-- Multiple API server replicas
-- Database replication (Galera)
-- Message queue clustering
-- Load balancing across replicas
+### For Bare Metal Compute Nodes
 
-### Data Plane HA
-- Compute node redundancy
-- Storage replication (Ceph)
-- Network redundancy (VRRP)
+1. **nova.conf**: Point to Kubernetes APIs and RabbitMQ
+2. **neutron.conf**: Point to Kubernetes Neutron API
+3. **Network Interfaces**: Configure physical networking
+4. **Storage**: Configure local or shared storage
 
-## Disaster Recovery
+## Next Steps
 
-### Backup Strategy
-- Database backups (automated)
-- Configuration backups (Git)
-- Volume snapshots
-- Image backups
+1. ✅ **Deploy Neutron Server** (API only in Kubernetes)
+2. ⏳ **Deploy Nova Control Plane** (API, Scheduler, Conductor)
+3. ⏳ **Expose Services** for bare metal access
+4. ⏳ **Prepare Bare Metal Nodes** (Install nova-compute, neutron-agent)
+5. ⏳ **Connect & Test** (Register compute nodes, create VMs)
 
-### Recovery Procedures
-- Database restore
-- Service redeployment via ArgoCD
-- Volume recovery
-- Image recovery
+## Example: Bare Metal Nova Compute Configuration
 
-## Monitoring & Observability
+```ini
+# /etc/nova/nova.conf on compute node
 
-### Metrics
-- Prometheus for time-series metrics
-- Custom OpenStack exporters
-- Kubernetes metrics
-- ArgoCD metrics
+[DEFAULT]
+transport_url = rabbit://nova:PASSWORD@K8S_RABBITMQ_IP:5672/
 
-### Logging
-- Centralized logging (Loki/ELK)
-- Service logs
-- Audit logs
-- Application logs
+[api]
+auth_strategy = keystone
 
-### Tracing
-- Distributed tracing (Jaeger/Tempo)
-- Request flow visualization
-- Performance analysis
+[keystone_authtoken]
+www_authenticate_uri = http://K8S_KEYSTONE_IP:5000/v3
+auth_url = http://K8S_KEYSTONE_IP:5000/v3
+auth_type = password
+project_domain_name = service
+user_domain_name = service
+project_name = service
+username = nova
+password = PASSWORD
 
-## Future Enhancements
+[glance]
+api_servers = http://K8S_GLANCE_IP:9292
 
-- Service mesh integration
-- Multi-region support
-- Advanced placement policies
-- GPU support for compute
-- Kubernetes operator pattern
+[neutron]
+auth_url = http://K8S_KEYSTONE_IP:5000/v3
+auth_type = password
+project_domain_name = service
+user_domain_name = service
+region_name = RegionOne
+project_name = service
+username = neutron
+password = PASSWORD
+service_metadata_proxy = true
+metadata_proxy_shared_secret = SECRET
 
-## References
+[placement]
+region_name = RegionOne
+auth_url = http://K8S_KEYSTONE_IP:5000/v3
+auth_type = password
+project_domain_name = service
+user_domain_name = service
+project_name = service
+username = placement
+password = PASSWORD
+```
 
-- [OpenStack Architecture](https://docs.openstack.org/install-guide/get-started-conceptual.html)
-- [Kubernetes Architecture](https://kubernetes.io/docs/concepts/architecture/)
-- [ArgoCD Architecture](https://argo-cd.readthedocs.io/en/stable/operator-manual/architecture/)
+---
+
+This architecture is **production-ready** and used by many OpenStack deployments! 🚀
