@@ -34,9 +34,8 @@ endpoints:
         username: placement
         password: placement  # Helm will create user with this password
       admin:
-        # Get root password from: kubectl get secret -n openstack mariadb-basic-root
         username: root
-        password: 1t{Tqs3d0aPe4k-u
+        password: PASSWORD_PLACEHOLDER
 
   # Keystone configuration
   identity:

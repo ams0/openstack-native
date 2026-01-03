@@ -85,8 +85,8 @@ endpoints:
     path: /neutron
     auth:
       admin:
-        username: default_user_P2T5Hek-T9Pmk7uTYB1
-        password: AGYM3yJLS7ER5qvZ4Od0I0wexIvtI413
+        username: RABBITMQ_ADMIN_USER
+        password: RABBITMQ_ADMIN_PASSWORD
       neutron:
         username: neutron
         password: neutron
@@ -106,7 +106,7 @@ endpoints:
         password: neutron
       admin:
         username: root
-        password: 1t{Tqs3d0aPe4k-u
+        password: PASSWORD_PLACEHOLDER
 
   # Keystone configuration
   identity:
