@@ -98,7 +98,7 @@ endpoints:
 
   oslo_cache:
     hosts:
-      default: memcached
+      default: memcached-service
     host_fqdn_override:
       default: null
     port:
