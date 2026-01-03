@@ -39,7 +39,8 @@ conf:
         tenant_network_types: vxlan,vlan
         # Mechanism drivers - how networks are implemented
         # Configure based on what your compute nodes will use
-        mechanism_drivers: openvswitch,linuxbridge,l2population
+        #mechanism_drivers: openvswitch,linuxbridge,l2population
+        mechanism_drivers: null
         # Extensions
         extension_drivers: port_security,dns_domain_ports
 
@@ -84,8 +85,8 @@ endpoints:
     path: /neutron
     auth:
       admin:
-        username: RABBITMQ_ADMIN_USER
-        password: RABBITMQ_ADMIN_PASSWORD
+        username: default_user_P2T5Hek-T9Pmk7uTYB1
+        password: AGYM3yJLS7ER5qvZ4Od0I0wexIvtI413
       neutron:
         username: neutron
         password: neutron
@@ -105,7 +106,7 @@ endpoints:
         password: neutron
       admin:
         username: root
-        password: MARIADB_ROOT_PASSWORD
+        password: 1t{Tqs3d0aPe4k-u
 
   # Keystone configuration
   identity:
@@ -193,6 +194,64 @@ pod:
       limits:
         memory: "2048Mi"
         cpu: "2000m"
+  # Required even when agents are disabled
+  replicas:
+    server: 1
+
+# Dependencies - required by templates even when disabled
+dependencies:
+  dynamic:
+    common:
+      local_image_registry:
+        jobs: null
+        services: null
+  static:
+    db_init:
+      jobs: null
+      services:
+        - endpoint: internal
+          service: oslo_db
+    db_sync:
+      jobs:
+        - neutron-db-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+    ks_endpoints:
+      jobs:
+        - neutron-ks-service
+      services:
+        - endpoint: internal
+          service: identity
+    ks_service:
+      jobs: null
+      services:
+        - endpoint: internal
+          service: identity
+    ks_user:
+      jobs:
+        - neutron-ks-service
+      services:
+        - endpoint: internal
+          service: identity
+    rabbit_init:
+      jobs: null
+      services:
+        - endpoint: internal
+          service: oslo_messaging
+    server:
+      jobs:
+        - neutron-db-sync
+        - neutron-ks-user
+        - neutron-ks-endpoints
+        - neutron-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: oslo_messaging
+        - endpoint: internal
+          service: identity
 
 # Manifests - CONTROL PLANE ONLY
 # Disable all agents - they'll run on bare metal compute nodes
@@ -222,3 +281,4 @@ manifests:
   daemonset_metadata_agent: false    # ❌ Run on compute nodes or centralized
   daemonset_ovs_agent: false         # ❌ Run on compute nodes
   daemonset_sriov_agent: false       # ❌ SR-IOV (if needed) on compute nodes
+  daemonset_netns_cleanup_cron: false # ❌ Not needed for control plane only
