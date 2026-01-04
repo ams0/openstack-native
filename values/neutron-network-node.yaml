@@ -1,0 +1,408 @@
+# OpenStack-Helm Neutron values for Network Node
+# This configuration deploys ONLY the Neutron agents (L2/L3/DHCP/Metadata)
+# The Neutron API server runs on the control plane
+
+labels:
+  # Target specific network nodes with a custom label
+  # Apply this label to your network nodes:
+  #   kubectl label node <node-name> openstack-network-node=enabled
+  agent:
+    dhcp:
+      node_selector_key: openstack-network-node
+      node_selector_value: enabled
+    l3:
+      node_selector_key: openstack-network-node
+      node_selector_value: enabled
+    metadata:
+      node_selector_key: openstack-network-node
+      node_selector_value: enabled
+    ovs:
+      node_selector_key: openstack-network-node
+      node_selector_value: enabled
+  job:
+    node_selector_key: openstack-network-node
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-network-node
+    node_selector_value: enabled
+
+# Network backend configuration
+network:
+  # Choose backend: Use OVS for production, or [] for other configurations
+  backend:
+    - openvswitch
+
+  # Interface configuration for network nodes
+  interface:
+    # Tunnel interface for VXLAN traffic between network/compute nodes
+    tunnel: "eth0"  # Change to your tunnel network interface
+
+  # External bridge mappings for provider networks
+  # Format: "physical_network:bridge_name"
+  # Example: Connect 'public' provider network to 'br-ex' bridge
+  external_bridge: br-ex
+
+  # Auto-create bridges for provider networks
+  auto_bridge_add:
+    br-ex: "eth1"  # Maps br-ex bridge to eth1 physical interface
+
+# Neutron configuration
+conf:
+  neutron:
+    DEFAULT:
+      # Core plugin - must match control plane
+      core_plugin: ml2
+      # Interface driver for agents
+      interface_driver: openvswitch
+      # Don't run API on network nodes
+      api_workers: 0
+      rpc_workers: 2
+
+    # Agent configuration
+    agent:
+      root_helper: sudo neutron-rootwrap /etc/neutron/rootwrap.conf
+      # Prevent ARP spoofing
+      prevent_arp_spoofing: True
+      # Report agent state interval
+      report_interval: 30
+
+  # ML2 Plugin configuration (must match control plane)
+  plugins:
+    ml2_conf:
+      ml2:
+        type_drivers: flat,vlan,vxlan,gre
+        tenant_network_types: vxlan,vlan
+        mechanism_drivers: openvswitch,l2population
+        extension_drivers: port_security,dns_domain_ports
+
+      ml2_type_flat:
+        # Flat networks for provider networks
+        flat_networks: public,external
+
+      ml2_type_vlan:
+        # VLAN ranges for provider networks
+        # Format: physical_network:vlan_min:vlan_max
+        network_vlan_ranges: public:1:4094,external:1:4094
+
+      ml2_type_vxlan:
+        # VNI ranges for tenant networks (must match control plane)
+        vni_ranges: 1:100000
+
+      ml2_type_gre:
+        # GRE tunnel ID ranges
+        tunnel_id_ranges: 1:100000
+
+    # OVS agent configuration
+    openvswitch_agent:
+      agent:
+        tunnel_types: vxlan
+        l2_population: True
+        # ARP responder for better performance
+        arp_responder: True
+        # Enable distributed virtual routing if supported
+        enable_distributed_routing: False
+
+      ovs:
+        # Bridge mappings: physical_network:bridge_name
+        bridge_mappings: public:br-ex,external:br-ex
+        # Local IP for VXLAN tunnels (will be auto-detected from tunnel interface)
+        local_ip: null
+        # Integration bridge (default: br-int)
+        integration_bridge: br-int
+        # Tunnel bridge (default: br-tun)
+        tunnel_bridge: br-tun
+        # Drop packets from invalid MAC addresses
+        drop_flows_on_start: False
+
+      securitygroup:
+        firewall_driver: openvswitch
+        enable_security_group: True
+        enable_ipset: True
+
+    # Linux Bridge agent configuration (alternative to OVS)
+    # Uncomment if using Linux Bridge instead of OVS
+    # linuxbridge_agent:
+    #   linux_bridge:
+    #     physical_interface_mappings: public:eth1,external:eth1
+    #   vxlan:
+    #     enable_vxlan: True
+    #     l2_population: True
+    #     local_ip: null  # Auto-detected
+    #   securitygroup:
+    #     firewall_driver: iptables
+    #     enable_security_group: True
+
+    # L3 Agent configuration
+    l3_agent:
+      DEFAULT:
+        # Interface driver
+        interface_driver: openvswitch
+        # External network bridge
+        external_network_bridge: ""  # Empty for per-network bridges
+        # Agent mode: legacy, dvr, dvr_snat
+        agent_mode: legacy
+        # Enable metadata proxy
+        enable_metadata_proxy: True
+        # Enable isolated metadata (for networks without gateway)
+        enable_isolated_metadata: True
+        # Gateway external network ID (leave empty for auto-detection)
+        gateway_external_network_id: ""
+
+    # DHCP Agent configuration
+    dhcp_agent:
+      DEFAULT:
+        # Interface driver
+        interface_driver: openvswitch
+        # DHCP driver
+        dhcp_driver: neutron.agent.linux.dhcp.Dnsmasq
+        # Enable isolated metadata
+        enable_isolated_metadata: True
+        # Enable metadata network
+        enable_metadata_network: True
+        # Force metadata (required for cloud-init)
+        force_metadata: True
+        # DHCP lease duration (seconds)
+        dhcp_lease_duration: 86400
+        # DNS servers for instances (optional)
+        # dnsmasq_dns_servers: 8.8.8.8,8.8.4.4
+
+    # Metadata Agent configuration
+    metadata_agent:
+      DEFAULT:
+        # Metadata proxy shared secret (must match nova-api-metadata)
+        # Generate with: openssl rand -hex 16
+        metadata_proxy_shared_secret: "changeme-metadata-secret"
+        # Nova metadata host (control plane)
+        nova_metadata_host: nova-metadata
+        nova_metadata_port: 8775
+        nova_metadata_protocol: http
+        # Number of worker processes
+        metadata_workers: 2
+        # Metadata API URL
+        metadata_backlog: 4096
+
+  # Paste configuration
+  paste:
+    # No API on network nodes
+    filter:debug:
+      use: egg:oslo.middleware#debug
+
+  # Policy configuration
+  policy:
+    # Use default policies from control plane
+    context_is_admin: role:admin
+    owner: user_id:%(user_id)s
+    admin_or_owner: rule:context_is_admin or rule:owner
+
+endpoints:
+  # Connect to control plane services
+
+  # Memcached (control plane)
+  oslo_cache:
+    hosts:
+      default: memcached-service
+    port:
+      memcache:
+        default: 11211
+
+  # RabbitMQ (control plane)
+  oslo_messaging:
+    scheme: rabbit
+    hosts:
+      default: openstack-rabbitmq
+    port:
+      amqp:
+        default: 5672
+    path: /neutron
+    auth:
+      admin:
+        username: RABBITMQ_ADMIN_USER
+        password: RABBITMQ_ADMIN_PASSWORD
+      neutron:
+        username: neutron
+        password: neutron
+
+  # MariaDB (control plane) - read-only access
+  oslo_db:
+    scheme: mysql+pymysql
+    hosts:
+      default: mariadb-basic
+    port:
+      mysql:
+        default: 3306
+    path: /neutron
+    auth:
+      neutron:
+        username: neutron
+        password: neutron
+
+  # Keystone (control plane)
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      neutron:
+        role: admin
+        region_name: RegionOne
+        username: neutron
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone
+      internal: keystone-api
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 5000
+
+  # Nova API (control plane) - for metadata
+  compute:
+    name: nova
+    hosts:
+      default: nova-api
+      public: nova
+    path:
+      default: "/v2.1"
+    scheme:
+      default: http
+    port:
+      api:
+        default: 8774
+        public: 80
+
+  # Neutron API (control plane)
+  network:
+    name: neutron
+    hosts:
+      default: neutron-server
+      public: neutron
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      api:
+        default: 9696
+        public: 80
+
+# Pod configuration
+pod:
+  # Security context for agents
+  security_context:
+    neutron_dhcp_agent:
+      pod:
+        runAsUser: 0  # Agents need root
+      container:
+        neutron_dhcp_agent:
+          privileged: true
+          capabilities:
+            add:
+              - NET_ADMIN
+              - SYS_ADMIN
+
+    neutron_l3_agent:
+      pod:
+        runAsUser: 0
+      container:
+        neutron_l3_agent:
+          privileged: true
+          capabilities:
+            add:
+              - NET_ADMIN
+              - SYS_ADMIN
+
+    neutron_metadata_agent:
+      pod:
+        runAsUser: 0
+      container:
+        neutron_metadata_agent:
+          privileged: false
+
+    neutron_ovs_agent:
+      pod:
+        runAsUser: 0
+      container:
+        neutron_ovs_agent:
+          privileged: true
+          capabilities:
+            add:
+              - NET_ADMIN
+              - SYS_ADMIN
+
+  # Resource limits
+  resources:
+    enabled: true
+    dhcp_agent:
+      limits:
+        memory: "1024Mi"
+        cpu: "1000m"
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+    l3_agent:
+      limits:
+        memory: "1024Mi"
+        cpu: "1000m"
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+    metadata_agent:
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+    ovs_agent:
+      limits:
+        memory: "1024Mi"
+        cpu: "1000m"
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+
+  # Host networking for agents
+  use_host_network:
+    dhcp_agent: true
+    l3_agent: true
+    metadata_agent: true
+    ovs_agent: true
+
+# Manifests - Deploy ONLY agents, NO control plane components
+manifests:
+  # Control plane components - DISABLED
+  configmap_bin: true
+  configmap_etc: true
+  daemonset_dhcp_agent: true       # ✅ DHCP Agent
+  daemonset_l3_agent: true         # ✅ L3 Agent
+  daemonset_lb_agent: false        # ❌ Use OVS instead
+  daemonset_metadata_agent: true   # ✅ Metadata Agent
+  daemonset_ovs_agent: true        # ✅ OVS Agent
+  daemonset_sriov_agent: false     # ❌ SR-IOV (enable if needed)
+  deployment_server: false         # ❌ API Server (runs on control plane)
+  ingress_server: false            # ❌ No ingress on network nodes
+  job_bootstrap: false             # ❌ No bootstrap on network nodes
+  job_db_init: false               # ❌ No DB init on network nodes
+  job_db_sync: false               # ❌ No DB sync on network nodes
+  job_db_drop: false               # ❌ No DB operations
+  job_image_repo_sync: false       # ❌ No image sync
+  job_rabbit_init: false           # ❌ No RabbitMQ init
+  pod_rally_test: false            # ❌ No tests on network nodes
+  secret_db: true                  # ✅ Need DB secret for agents
+  secret_ingress_tls: false        # ❌ No ingress
+  secret_keystone: true            # ✅ Need Keystone credentials
+  secret_rabbitmq: true            # ✅ Need RabbitMQ credentials
+  service_ingress_server: false    # ❌ No service
+  service_server: false            # ❌ No API service
