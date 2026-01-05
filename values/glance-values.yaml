@@ -27,19 +27,22 @@ endpoints:
       memcache:
         default: 11211
 
-  # RabbitMQ configuration
+  # RabbitMQ configuration (TLS enabled)
   oslo_messaging:
     scheme: rabbit
     hosts:
       default: openstack-rabbitmq
     port:
       amqp:
-        default: 5672
+        default: 5671  # AMQPS port (TLS)
     path: /glance
     auth:
       admin:
         username: RABBITMQ_ADMIN_USER
         password: RABBITMQ_ADMIN_PASSWORD
+        secret:
+          tls:
+            internal: rabbitmq-tls-secret
       glance:
         username: glance
         password: glance
@@ -107,3 +110,7 @@ conf:
       filesystem_store_datadir: /var/lib/glance/images
       default_backend: file
       stores: file,http
+
+# Enable TLS for RabbitMQ connections
+tls:
+  oslo_messaging: true

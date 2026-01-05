@@ -205,19 +205,22 @@ endpoints:
       memcache:
         default: 11211
 
-  # RabbitMQ (control plane)
+  # RabbitMQ (control plane) - TLS enabled
   oslo_messaging:
     scheme: rabbit
     hosts:
       default: openstack-rabbitmq
     port:
       amqp:
-        default: 5672
+        default: 5671  # AMQPS port (TLS)
     path: /neutron
     auth:
       admin:
         username: RABBITMQ_ADMIN_USER
         password: RABBITMQ_ADMIN_PASSWORD
+        secret:
+          tls:
+            internal: rabbitmq-tls-secret
       neutron:
         username: neutron
         password: neutron
@@ -406,3 +409,7 @@ manifests:
   secret_rabbitmq: true            # ✅ Need RabbitMQ credentials
   service_ingress_server: false    # ❌ No service
   service_server: false            # ❌ No API service
+
+# Enable TLS for RabbitMQ connections
+tls:
+  oslo_messaging: true

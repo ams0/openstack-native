@@ -72,18 +72,26 @@ endpoints:
     hosts:
       default: mariadb-basic
 
-  # RabbitMQ endpoint - use existing RabbitMQ service with correct password
+  # RabbitMQ endpoint - use existing RabbitMQ service with correct password (TLS enabled)
   oslo_messaging:
     auth:
       admin:
         username: RABBITMQ_ADMIN_USER
         password: RABBITMQ_ADMIN_PASSWORD
+        secret:
+          tls:
+            internal: rabbitmq-tls-secret
       nova:
         username: nova
         password: nova
     statefulset: null
     hosts:
       default: openstack-rabbitmq
+    scheme: rabbit
+    port:
+      amqp:
+        default: 5671  # AMQPS port (TLS)
+    path: /nova
 
   # Identity endpoint
   identity:
@@ -288,3 +296,7 @@ dependencies:
   static:
     cell_setup:
       pod: []
+
+# Enable TLS for RabbitMQ connections
+tls:
+  oslo_messaging: true

@@ -1,7 +1,7 @@
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
-  name: selfsigned-issuer
+  name: selfsigned-root-issuer
   namespace: openstack
 spec:
   selfSigned: {}
@@ -9,12 +9,36 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: selfsigned-cert
+  name: openstack-ca-cert
+  namespace: openstack
+spec:
+  isCA: true
+  commonName: "OpenStack-Internal-Root-CA"
+  secretName: openstack-ca-secret
+  issuerRef:
+    name: selfsigned-root-issuer
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: openstack-ca-issuer
+  namespace: openstack
+spec:
+  ca:
+    secretName: openstack-ca-secret
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: rabbitmq-server-cert
   namespace: openstack
 spec:
   dnsNames:
+    - "rabbit.tls-nodes.openstack.svc.cluster.local"
     - "*.tls-nodes.openstack.svc.cluster.local"
+  commonName: "rabbit.tls-nodes.openstack.svc.cluster.local"
   secretName: rabbitmq-tls-secret
   issuerRef:
+    name: openstack-ca-issuer
     kind: Issuer
-    name: selfsigned-issuer
