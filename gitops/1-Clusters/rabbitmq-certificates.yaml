@@ -1,0 +1,20 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned-issuer
+  namespace: openstack
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: selfsigned-cert
+  namespace: openstack
+spec:
+  dnsNames:
+    - "*.tls-nodes.openstack.svc.cluster.local"
+  secretName: rabbitmq-tls-secret
+  issuerRef:
+    kind: Issuer
+    name: selfsigned-issuer

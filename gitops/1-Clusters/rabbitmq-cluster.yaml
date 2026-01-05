@@ -5,6 +5,13 @@ metadata:
   namespace: openstack
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+spec:
+  override:
+    service:
+      spec:
+        type: LoadBalancer
+  tls:
+    secretName: rabbitmq-tls-secret
 ---
 apiVersion: rabbitmq.com/v1beta1
 kind: Vhost
