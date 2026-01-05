@@ -115,3 +115,9 @@ local/
 test-results/
 junit.xml
 temp.json
+
+# Password management (DO NOT COMMIT)
+update-passwords-local.sh
+*-with-passwords.yaml
+values/backup-*/
+

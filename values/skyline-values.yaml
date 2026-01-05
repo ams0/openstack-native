@@ -1,0 +1,129 @@
+# Skyline - Modern OpenStack Dashboard
+# Deployment: Control Plane Only
+#
+# Deploy with:
+#   cd /home/opn/openstack-helm/skyline
+#   helm dependency build
+#   helm install skyline . --namespace openstack -f /home/opn/openstack-native/values/skyline-values.yaml
+
+labels:
+  skyline:
+    node_selector_key: kubernetes.io/os
+    node_selector_value: linux
+  job:
+    node_selector_key: kubernetes.io/os
+    node_selector_value: linux
+
+images:
+  tags:
+    skyline: quay.io/airshipit/skyline:2025.2-ubuntu_noble
+    db_init: quay.io/airshipit/openstack-client:2025.1-ubuntu_noble
+    db_sync: quay.io/airshipit/skyline:2025.2-ubuntu_noble
+    ks_user: quay.io/airshipit/openstack-client:2025.1-ubuntu_noble
+  pull_policy: "IfNotPresent"
+
+network:
+  skyline:
+    ingress:
+      public: true
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+    node_port:
+      enabled: true
+      port: 31001  # Different from Horizon (31000)
+
+endpoints:
+  cluster_domain_suffix: cluster.local
+
+  # MariaDB - Control Plane
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: PASSWORD_PLACEHOLDER
+      skyline:
+        username: skyline
+        password: PASSWORD_PLACEHOLDER
+    hosts:
+      default: mariadb-basic
+    path: /skyline
+    scheme:
+      default: mysql+pymysql
+    port:
+      mysql:
+        default: 3306
+
+  # Keystone - Control Plane
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: PASSWORD_PLACEHOLDER
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      skyline:
+        role: admin
+        region_name: RegionOne
+        username: skyline
+        password: PASSWORD_PLACEHOLDER
+        project_name: service
+        user_domain_name: default
+        project_domain_name: default
+    hosts:
+      default: keystone
+      internal: keystone-api
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 5000
+
+  # Skyline API
+  skyline:
+    name: skyline
+    hosts:
+      default: skyline-api
+      public: skyline
+    scheme:
+      default: 'http'
+      service: 'http'
+    port:
+      api:
+        default: 9999
+        public: 80
+
+pod:
+  replicas:
+    skyline: 1
+
+conf:
+  skyline:
+    default:
+      debug: true
+      log_dir: /var/log
+      log_file: /dev/stdout
+      access_log_file: /dev/stdout
+      error_log_file: /dev/stdout
+    openstack:
+      interface_type: internal
+
+manifests:
+  certificates: false
+  configmap_etc: true
+  configmap_bin: true
+  deployment: true
+  job_db_init: true
+  job_db_sync: true
+  job_db_drop: false
+  secret_db: true
+  secret_keystone: true
+  job_ks_user: true
+  service: true
+  ingress: true
+  service_ingress: true

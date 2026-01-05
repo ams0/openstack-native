@@ -1,0 +1,569 @@
+# OpenStack-Helm Nova values for Compute Node
+# This configuration deploys ONLY Nova Compute + Libvirt
+# Control plane services (API, Scheduler, Conductor) run separately
+
+labels:
+  # Target specific compute nodes with a custom label
+  # Apply this label to your compute nodes:
+  #   kubectl label node <node-name> openstack-compute-node=enabled
+  agent:
+    compute:
+      node_selector_key: openstack-compute-node
+      node_selector_value: enabled
+    compute_ironic:
+      node_selector_key: openstack-compute-node
+      node_selector_value: enabled
+  job:
+    node_selector_key: openstack-compute-node
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-compute-node
+    node_selector_value: enabled
+
+# Nova Compute Configuration
+conf:
+  nova:
+    DEFAULT:
+      # Compute-specific settings
+      compute_driver: libvirt.LibvirtDriver
+
+      # Instance management
+      instances_path: /var/lib/nova/instances
+      instance_usage_audit: True
+      instance_usage_audit_period: hour
+
+      # Resize/migration settings
+      allow_resize_to_same_host: True
+      resize_fs_using_block_device: False
+
+      # Scheduler hints
+      scheduler_default_filters: RetryFilter,AvailabilityZoneFilter,ComputeFilter,ComputeCapabilitiesFilter,ImagePropertiesFilter,ServerGroupAntiAffinityFilter,ServerGroupAffinityFilter
+
+      # Resource tracking
+      reserved_host_memory_mb: 2048
+      reserved_host_cpus: 1
+
+      # Networking
+      use_neutron: True
+      firewall_driver: nova.virt.firewall.NoopFirewallDriver
+
+      # VNC Console
+      vnc_enabled: True
+      vncserver_listen: 0.0.0.0
+      vncserver_proxyclient_address: $my_ip
+      # novncproxy_base_url must point to control plane novncproxy
+      # Format: http://<control-plane-ip>:6080/vnc_auto.html
+      # Will be set via novncproxy endpoint
+
+      # Logging
+      debug: False
+      log_dir: /var/log/nova
+
+      # API settings (compute nodes don't run API)
+      enabled_apis: ""
+
+    # Libvirt Configuration
+    libvirt:
+      # Virtualization type: kvm (hardware virt) or qemu (software)
+      virt_type: kvm
+
+      # CPU mode: host-model (recommended), host-passthrough, or custom
+      cpu_mode: host-model
+
+      # Live migration settings
+      live_migration_uri: qemu+ssh://nova@%s/system?keyfile=/var/lib/nova/.ssh/id_rsa&no_verify=1
+      live_migration_tunnelled: False
+      live_migration_with_native_tls: False
+      live_migration_completion_timeout: 800
+      live_migration_progress_timeout: 150
+
+      # Disk settings
+      disk_cachemodes: "network=writeback,block=none"
+      hw_disk_discard: unmap
+
+      # Image type: raw, qcow2, etc.
+      images_type: qcow2
+
+      # Inject partition (for cloud-init)
+      inject_partition: -2
+      inject_password: False
+      inject_key: False
+
+      # Resource management
+      cpu_allocation_ratio: 4.0
+      ram_allocation_ratio: 1.0
+      disk_allocation_ratio: 1.0
+
+    # Neutron Integration
+    neutron:
+      # Neutron API endpoint (control plane)
+      url: http://neutron-server.openstack.svc.cluster.local:9696
+      region_name: RegionOne
+
+      # Metadata proxy secret (must match neutron metadata agent)
+      metadata_proxy_shared_secret: "changeme-metadata-secret"
+
+      # OVS Integration bridge
+      ovs_bridge: br-int
+
+      # Security groups
+      firewall_driver: nova.virt.firewall.NoopFirewallDriver
+
+    # Placement Integration
+    placement:
+      # Placement API endpoint (control plane)
+      region_name: RegionOne
+
+    # Cinder Integration (Block Storage)
+    cinder:
+      catalog_info: volumev3:cinderv3:internalURL
+      os_region_name: RegionOne
+
+    # Glance Integration (Image Service)
+    glance:
+      api_servers: http://glance-api.openstack.svc.cluster.local:9292
+
+  # Libvirt configuration file
+  libvirt:
+    # Listen on TCP for live migration (use with caution in production)
+    listen_tcp: 1
+    listen_tls: 0
+    tcp_port: 16509
+
+    # Authentication for live migration
+    auth_tcp: none
+
+    # Logging
+    log_level: 3
+    log_outputs: "3:syslog"
+    log_filters: "1:libvirt 1:qemu 1:conf 1:security 3:event 3:json 3:file 3:object 1:util"
+
+  # Neutron ML2 OVS Agent (runs on compute nodes)
+  neutron:
+    DEFAULT:
+      interface_driver: openvswitch
+
+  plugins:
+    ml2_conf:
+      ml2:
+        type_drivers: flat,vlan,vxlan,gre
+        tenant_network_types: vxlan,vlan
+        mechanism_drivers: openvswitch,l2population
+
+      ml2_type_vxlan:
+        vni_ranges: 1:100000
+
+    openvswitch_agent:
+      agent:
+        tunnel_types: vxlan
+        l2_population: True
+        arp_responder: True
+        enable_distributed_routing: False
+
+      ovs:
+        # Integration bridge (where VM ports are attached)
+        integration_bridge: br-int
+        # Tunnel bridge (for VXLAN tunnels to other compute/network nodes)
+        tunnel_bridge: br-tun
+        # Local IP for VXLAN tunnels (auto-detected from tunnel interface)
+        local_ip: null
+        # Bridge mappings (usually empty on compute nodes)
+        bridge_mappings: ""
+
+      securitygroup:
+        firewall_driver: openvswitch
+        enable_security_group: True
+        enable_ipset: True
+
+  # SSH key for live migration
+  ssh:
+    enabled: true
+    # SSH key will be generated automatically
+    # or provide your own:
+    # private_key: |
+    #   -----BEGIN RSA PRIVATE KEY-----
+    #   ...
+    #   -----END RSA PRIVATE KEY-----
+    # public_key: "ssh-rsa ..."
+
+endpoints:
+  # Connect to control plane services
+
+  # MariaDB (control plane) - read-only for compute
+  oslo_db:
+    auth:
+      admin:
+        username: root
+        password: PASSWORD_PLACEHOLDER
+      nova:
+        username: nova
+        password: nova
+    hosts:
+      default: mariadb-basic
+    port:
+      mysql:
+        default: 3306
+
+  oslo_db_api:
+    auth:
+      admin:
+        username: root
+        password: PASSWORD_PLACEHOLDER
+      nova:
+        username: nova
+        password: nova
+    hosts:
+      default: mariadb-basic
+
+  oslo_db_cell0:
+    auth:
+      admin:
+        username: root
+        password: PASSWORD_PLACEHOLDER
+      nova:
+        username: nova
+        password: nova
+    hosts:
+      default: mariadb-basic
+
+  # RabbitMQ (control plane)
+  oslo_messaging:
+    auth:
+      admin:
+        username: RABBITMQ_ADMIN_USER
+        password: RABBITMQ_ADMIN_PASSWORD
+      nova:
+        username: nova
+        password: nova
+    statefulset: null
+    hosts:
+      default: openstack-rabbitmq
+    port:
+      amqp:
+        default: 5672
+
+  # Memcached (control plane)
+  oslo_cache:
+    hosts:
+      default: memcached-service
+    port:
+      memcache:
+        default: 11211
+
+  # Keystone (control plane)
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      nova:
+        role: admin
+        region_name: RegionOne
+        username: nova
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+      neutron:
+        role: admin
+        region_name: RegionOne
+        username: neutron
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+      placement:
+        role: admin
+        region_name: RegionOne
+        username: placement
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone
+      internal: keystone-api
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 5000
+
+  # Placement API (control plane)
+  placement:
+    name: placement
+    hosts:
+      default: placement-api
+      public: placement
+    path:
+      default: /
+    scheme:
+      default: http
+    port:
+      api:
+        default: 8778
+        public: 80
+
+  # Glance API (control plane)
+  image:
+    name: glance
+    hosts:
+      default: glance-api
+      public: glance
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      api:
+        default: 9292
+        public: 80
+
+  # Neutron API (control plane)
+  network:
+    name: neutron
+    hosts:
+      default: neutron-server
+      public: neutron
+    path:
+      default: null
+    scheme:
+      default: http
+    port:
+      api:
+        default: 9696
+        public: 80
+
+  # NoVNC Proxy (control plane)
+  compute_novnc_proxy:
+    name: nova
+    hosts:
+      default: nova-novncproxy
+      public: nova-novncproxy
+    path:
+      default: /vnc_auto.html
+    scheme:
+      default: http
+    port:
+      novnc_proxy:
+        default: 6080
+        public: 6080
+
+# Pod Configuration
+pod:
+  # Security contexts - compute needs extensive privileges
+  security_context:
+    nova_compute:
+      pod:
+        runAsUser: 0  # Must run as root
+        hostNetwork: true
+        hostPID: true
+        hostIPC: true
+      container:
+        nova_compute:
+          privileged: true
+          capabilities:
+            add:
+              - SYS_ADMIN
+              - NET_ADMIN
+              - SYS_NICE
+              - SYS_PTRACE
+        nova_compute_ssh:
+          privileged: false
+
+    nova_libvirt:
+      pod:
+        runAsUser: 0
+        hostNetwork: true
+        hostPID: true
+        hostIPC: true
+      container:
+        nova_libvirt:
+          privileged: true
+          capabilities:
+            add:
+              - SYS_ADMIN
+              - NET_ADMIN
+              - SYS_NICE
+              - SYS_PTRACE
+              - DAC_READ_SEARCH
+
+  # Resource limits
+  resources:
+    enabled: true
+    nova_compute:
+      limits:
+        memory: "4Gi"
+        cpu: "2000m"
+      requests:
+        memory: "2Gi"
+        cpu: "1000m"
+    nova_libvirt:
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+      requests:
+        memory: "512Mi"
+        cpu: "500m"
+
+  # Volume mounts
+  mounts:
+    nova_compute:
+      nova_compute:
+        # Libvirt socket
+        - name: libvirt-socket
+          mountPath: /var/run/libvirt
+        # Instance storage
+        - name: nova-instances
+          mountPath: /var/lib/nova/instances
+        # Device mapper
+        - name: dev
+          mountPath: /dev
+        # Cgroup access
+        - name: cgroup
+          mountPath: /sys/fs/cgroup
+        # Host modules
+        - name: lib-modules
+          mountPath: /lib/modules
+          readOnly: true
+        # Machine ID
+        - name: machine-id
+          mountPath: /etc/machine-id
+          readOnly: true
+
+  # Host path volumes
+  volumes:
+    # Libvirt runtime
+    - name: libvirt-socket
+      hostPath:
+        path: /var/run/libvirt
+        type: DirectoryOrCreate
+    # Instance storage path on host
+    - name: nova-instances
+      hostPath:
+        path: /var/lib/nova/instances
+        type: DirectoryOrCreate
+    # Device access
+    - name: dev
+      hostPath:
+        path: /dev
+    # Cgroup filesystem
+    - name: cgroup
+      hostPath:
+        path: /sys/fs/cgroup
+    # Kernel modules
+    - name: lib-modules
+      hostPath:
+        path: /lib/modules
+    # Machine ID
+    - name: machine-id
+      hostPath:
+        path: /etc/machine-id
+
+# Manifests - Deploy ONLY compute, NO control plane
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+
+  # Control plane - DISABLED
+  deployment_api_metadata: false      # ❌ Metadata API (runs on control plane)
+  deployment_api_osapi: false         # ❌ Nova API (runs on control plane)
+  deployment_conductor: false         # ❌ Conductor (runs on control plane)
+  deployment_consoleauth: false       # ❌ Deprecated
+  deployment_novncproxy: false        # ❌ NoVNC Proxy (runs on control plane)
+  deployment_placement: false         # ❌ Placement (separate service)
+  deployment_scheduler: false         # ❌ Scheduler (runs on control plane)
+  deployment_spiceproxy: false        # ❌ SPICE Proxy
+
+  # Compute - ENABLED
+  daemonset_compute: true             # ✅ Nova Compute (runs VMs)
+  daemonset_libvirt: true             # ✅ Libvirt (virtualization)
+
+  # Compute-specific
+  daemonset_compute_ironic: false     # ❌ Ironic compute (bare metal)
+  statefulset_compute_ironic: false   # ❌ Ironic compute
+
+  # Jobs - DISABLED (already done on control plane)
+  job_bootstrap: false                # ❌ No bootstrap
+  job_cell_setup: false               # ❌ No cell setup
+  job_db_init: false                  # ❌ No DB init
+  job_db_sync: false                  # ❌ No DB sync
+  job_db_drop: false                  # ❌ No DB operations
+  job_image_repo_sync: false          # ❌ No image sync
+  job_ks_endpoints: false             # ❌ No Keystone endpoints
+  job_ks_service: false               # ❌ No Keystone service
+  job_ks_user: false                  # ❌ No Keystone user
+  job_rabbit_init: false              # ❌ No RabbitMQ init
+
+  # Services - DISABLED
+  ingress_metadata: false             # ❌ No ingress
+  ingress_osapi: false                # ❌ No ingress
+  service_ingress_metadata: false     # ❌ No service
+  service_ingress_osapi: false        # ❌ No service
+  service_metadata: false             # ❌ No service
+  service_novncproxy: false           # ❌ No service
+  service_osapi: false                # ❌ No service
+  service_placement: false            # ❌ No service
+
+  # Secrets - ENABLED (needed by compute)
+  secret_db: true                     # ✅ DB credentials
+  secret_keystone: true               # ✅ Keystone credentials
+  secret_rabbitmq: true               # ✅ RabbitMQ credentials
+
+  # Other
+  pdb_metadata: false                 # ❌ No PDB
+  pdb_osapi: false                    # ❌ No PDB
+  pdb_placement: false                # ❌ No PDB
+  pod_rally_test: false               # ❌ No tests
+
+# Storage
+storage:
+  # Ephemeral storage for instances
+  ephemeral:
+    enabled: true
+    # Use host path for instance storage
+    type: hostPath
+    hostPath:
+      path: /var/lib/nova/instances
+
+  # Image cache
+  image_cache:
+    enabled: true
+    size: 50Gi
+
+# Network Configuration
+network:
+  backend:
+    - openvswitch
+
+  # Neutron OVS agent configuration
+  interface:
+    tunnel: "eth0"  # Tunnel interface for VXLAN
+
+# Dependencies
+dependencies:
+  static:
+    nova_compute:
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: oslo_messaging
+        - endpoint: internal
+          service: identity
+        - endpoint: internal
+          service: placement
+        - endpoint: internal
+          service: network
+        - endpoint: internal
+          service: image
+      daemonset:
+        - nova-libvirt

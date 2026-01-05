@@ -30,9 +30,8 @@ endpoints:
     path: /keystone
     auth:
       admin:
-        # Get these from: kubectl get secret -n openstack openstack-rabbitmq-default-user
-        username: default_user_P2T5Hek-T9Pmk7uTYB1
-        password: AGYM3yJLS7ER5qvZ4Od0I0wexIvtI413
+        username: RABBITMQ_ADMIN_USER
+        password: RABBITMQ_ADMIN_PASSWORD
       keystone:
         username: keystone
         password: keystone
@@ -51,9 +50,8 @@ endpoints:
         username: keystone
         password: keystone  # Helm will create user with this password
       admin:
-        # Get root password from: kubectl get secret -n openstack mariadb-basic-root
         username: root
-        password: 1t{Tqs3d0aPe4k-u
+        password: PASSWORD_PLACEHOLDER
 
 conf:
   # Disable RabbitMQ HA policies for single-node setup

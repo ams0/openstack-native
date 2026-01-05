@@ -43,7 +43,7 @@ endpoints:
     auth:
       admin:
         username: root
-        password: "1t{Tqs3d0aPe4k-u"
+        password: PASSWORD_PLACEHOLDER
       nova:
         username: nova
         password: nova
@@ -54,7 +54,7 @@ endpoints:
     auth:
       admin:
         username: root
-        password: "1t{Tqs3d0aPe4k-u"
+        password: PASSWORD_PLACEHOLDER
       nova:
         username: nova
         password: nova
@@ -65,7 +65,7 @@ endpoints:
     auth:
       admin:
         username: root
-        password: "1t{Tqs3d0aPe4k-u"
+        password: PASSWORD_PLACEHOLDER
       nova:
         username: nova
         password: nova
@@ -76,8 +76,8 @@ endpoints:
   oslo_messaging:
     auth:
       admin:
-        username: default_user_P2T5Hek-T9Pmk7uTYB1
-        password: AGYM3yJLS7ER5qvZ4Od0I0wexIvtI413
+        username: RABBITMQ_ADMIN_USER
+        password: RABBITMQ_ADMIN_PASSWORD
       nova:
         username: nova
         password: nova

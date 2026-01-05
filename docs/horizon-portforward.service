@@ -1,0 +1,21 @@
+[Unit]
+Description=Horizon Port Forward to 31000
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/kubectl port-forward -n openstack svc/horizon-int 31000:80 --address=0.0.0.0
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening (optional)
+# ProtectSystem=strict
+# ProtectHome=true
+# NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

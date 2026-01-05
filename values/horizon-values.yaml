@@ -98,7 +98,7 @@ endpoints:
 
   oslo_cache:
     hosts:
-      default: memcached
+      default: memcached-service
     host_fqdn_override:
       default: null
     port:
@@ -124,7 +124,7 @@ endpoints:
     auth:
       admin:
         username: root
-        password: "1t{Tqs3d0aPe4k-u"
+        password: PASSWORD_PLACEHOLDER
       horizon:
         username: horizon
         password: horizon
