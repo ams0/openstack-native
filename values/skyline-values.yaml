@@ -26,8 +26,7 @@ network:
   skyline:
     ingress:
       public: true
-      annotations:
-        nginx.ingress.kubernetes.io/rewrite-target: /
+      annotations: {}
     node_port:
       enabled: true
       port: 31001  # Different from Horizon (31000)
@@ -40,10 +39,10 @@ endpoints:
     auth:
       admin:
         username: root
-        password: PASSWORD_PLACEHOLDER
+        password: o3uTPN2qn5A/t~4h
       skyline:
         username: skyline
-        password: PASSWORD_PLACEHOLDER
+        password: skyline
     hosts:
       default: mariadb-basic
     path: /skyline
@@ -60,7 +59,7 @@ endpoints:
       admin:
         region_name: RegionOne
         username: admin
-        password: PASSWORD_PLACEHOLDER
+        password: password
         project_name: admin
         user_domain_name: default
         project_domain_name: default
@@ -68,10 +67,10 @@ endpoints:
         role: admin
         region_name: RegionOne
         username: skyline
-        password: PASSWORD_PLACEHOLDER
+        password: password
         project_name: service
-        user_domain_name: default
-        project_domain_name: default
+        user_domain_name: service
+        project_domain_name: service
     hosts:
       default: keystone
       internal: keystone-api
@@ -112,7 +111,8 @@ conf:
       error_log_file: /dev/stdout
     openstack:
       interface_type: internal
-
+      default_region: RegionOne
+      keystone_url: http://keystone-api.openstack.svc.cluster.local:5000/v3
 manifests:
   certificates: false
   configmap_etc: true
