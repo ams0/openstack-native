@@ -230,11 +230,8 @@ endpoints:
   oslo_messaging:
     auth:
       admin:
-        username: RABBITMQ_ADMIN_USER
-        password: RABBITMQ_ADMIN_PASSWORD
-        secret:
-          tls:
-            internal: rabbitmq-tls-secret
+        username: default_user_II86jGvszXIUUpK7cYU
+        password: cOu7isxpuXU_7swX8oROnyS5-kL-QKRf
       nova:
         username: nova
         password: nova
