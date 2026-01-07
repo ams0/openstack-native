@@ -252,6 +252,9 @@ conf:
       virt_type: qemu  # Use qemu on AKS (no nested virtualization)
       cpu_mode: host-passthrough
       live_migration_uri: qemu+ssh://nova@%s/system?keyfile=/var/lib/nova/.ssh/id_rsa&no_verify=1
+      images_type: qcow2  # Use qcow2 instead of RBD
+      images_rbd_pool: ""  # Disable RBD
+      images_rbd_ceph_conf: ""
 
 # Pod configuration - increase file descriptor limits
 pod:
