@@ -6,6 +6,19 @@ labels:
   server:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  agent:
+    dhcp:
+      node_selector_key: openstack-compute-node
+      node_selector_value: enabled
+    l3:
+      node_selector_key: openstack-compute-node
+      node_selector_value: enabled
+    metadata:
+      node_selector_key: openstack-compute-node
+      node_selector_value: enabled
+    ovs:
+      node_selector_key: openstack-compute-node
+      node_selector_value: enabled
   job:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
@@ -13,10 +26,12 @@ labels:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
 
-# Network backend - will be handled by agents on compute nodes
-# This just configures the ML2 plugin for neutron-server
+# Network backend configuration
 network:
-  backend: []  # No local backend needed for control plane only
+  backend:
+    - openvswitch
+  interface:
+    tunnel: "eth0"
 
 # Neutron Server configuration
 conf:
@@ -85,8 +100,8 @@ endpoints:
     path: /neutron
     auth:
       admin:
-        username: RABBITMQ_ADMIN_USER
-        password: RABBITMQ_ADMIN_PASSWORD
+        username: default_user_II86jGvszXIUUpK7cYU
+        password: cOu7isxpuXU_7swX8oROnyS5-kL-QKRf
         secret:
           tls:
             internal: rabbitmq-tls-secret
@@ -109,7 +124,7 @@ endpoints:
         password: neutron
       admin:
         username: root
-        password: PASSWORD_PLACEHOLDER
+        password: Zeyf}]V0Mv3n9oj7
 
   # Keystone configuration
   identity:
