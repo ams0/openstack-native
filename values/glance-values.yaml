@@ -15,7 +15,7 @@ labels:
 
 # Storage volume configuration for PVC backend
 volume:
-  class_name: standard
+  class_name: default
   size: 10Gi
 
 endpoints:
@@ -38,8 +38,8 @@ endpoints:
     path: /glance
     auth:
       admin:
-        username: RABBITMQ_ADMIN_USER
-        password: RABBITMQ_ADMIN_PASSWORD
+        username: default_user_II86jGvszXIUUpK7cYU
+        password: cOu7isxpuXU_7swX8oROnyS5-kL-QKRf
         secret:
           tls:
             internal: rabbitmq-tls-secret
@@ -62,7 +62,7 @@ endpoints:
         password: glance  # Helm will create user with this password
       admin:
         username: root
-        password: PASSWORD_PLACEHOLDER
+        password: Zeyf}]V0Mv3n9oj7
 
   # Keystone configuration
   identity:
