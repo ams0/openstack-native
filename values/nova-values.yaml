@@ -263,9 +263,10 @@ pod:
         cpu: "100m"
         memory: "128Mi"
 
-# Manifests - Control Plane Only (disable compute nodes)
+# Manifests - Control Plane + Compute Nodes
 manifests:
-  daemonset_compute: false           # Disable nova-compute (runs on worker nodes)
+  daemonset_compute: true            # Enable nova-compute on openstack-compute-node nodes
+  daemonset_libvirt: true            # Enable libvirt on openstack-compute-node nodes
   daemonset_compute_ironic: false    # Disable ironic compute
   statefulset_compute_ironic: false  # Disable ironic statefulset
 
