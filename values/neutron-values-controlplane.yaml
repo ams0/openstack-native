@@ -106,25 +106,23 @@ endpoints:
       memcache:
         default: 11211
 
-  # RabbitMQ configuration (TLS enabled)
+  # RabbitMQ configuration (non-TLS)
   oslo_messaging:
     scheme: rabbit
     hosts:
       default: openstack-rabbitmq
     port:
       amqp:
-        default: 5671  # AMQPS port (TLS)
+        default: 5672  # AMQP port (non-TLS)
     path: /neutron
     auth:
       admin:
         username: default_user_II86jGvszXIUUpK7cYU
         password: cOu7isxpuXU_7swX8oROnyS5-kL-QKRf
-        secret:
-          tls:
-            internal: rabbitmq-tls-secret
       neutron:
         username: neutron
         password: neutron
+    statefulset: null
 
   # MariaDB configuration
   oslo_db:
