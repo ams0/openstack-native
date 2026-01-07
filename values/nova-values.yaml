@@ -272,10 +272,6 @@ pod:
         cpu: "100m"
         memory: "128Mi"
 
-# Storage - disable Ceph
-ceph_client:
-  configmap: null
-
 # Manifests - Control Plane + Compute Nodes
 manifests:
   daemonset_compute: true            # Enable nova-compute on openstack-compute-node nodes
