@@ -41,6 +41,15 @@ conf:
     user: "nova"
     group: "kvm"
 
+  # Kubernetes cgroup configuration for cgroup v2
+  kubernetes:
+    cgroup: "kubepods.slice"
+    # cgroup v2 controllers (removing incompatible v1 controllers)
+    cgroup_controllers:
+      - cpu
+      - memory
+      - pids
+
 # Pod configuration
 pod:
   # Resource limits
