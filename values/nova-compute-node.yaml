@@ -462,10 +462,10 @@ manifests:
   service_osapi: false                # ❌ No service
   service_placement: false            # ❌ No service
 
-  # Secrets - ENABLED (needed by compute)
-  secret_db: true                     # ✅ DB credentials
-  secret_keystone: true               # ✅ Keystone credentials
-  secret_rabbitmq: true               # ✅ RabbitMQ credentials
+  # Secrets - DISABLED (use control plane secrets)
+  secret_db: false                    # ❌ Use control plane DB secret
+  secret_keystone: false              # ❌ Use control plane keystone secret
+  secret_rabbitmq: false              # ❌ Use control plane RabbitMQ secret
 
   # Cron jobs - DISABLED
   cron_job_service_cleaner: false     # ❌ Service cleaner (runs on control plane)
