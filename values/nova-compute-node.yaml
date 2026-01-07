@@ -466,6 +466,9 @@ manifests:
   secret_keystone: true               # ✅ Keystone credentials
   secret_rabbitmq: true               # ✅ RabbitMQ credentials
 
+  # Cron jobs - DISABLED
+  cron_job_service_cleaner: false     # ❌ Service cleaner (runs on control plane)
+
   # Other
   pdb_metadata: false                 # ❌ No PDB
   pdb_osapi: false                    # ❌ No PDB
