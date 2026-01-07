@@ -194,7 +194,7 @@ endpoints:
     auth:
       admin:
         username: root
-        password: PASSWORD_PLACEHOLDER
+        password: Zeyf}]V0Mv3n9oj7
       nova:
         username: nova
         password: nova
@@ -208,7 +208,7 @@ endpoints:
     auth:
       admin:
         username: root
-        password: PASSWORD_PLACEHOLDER
+        password: Zeyf}]V0Mv3n9oj7
       nova:
         username: nova
         password: nova
@@ -219,7 +219,7 @@ endpoints:
     auth:
       admin:
         username: root
-        password: PASSWORD_PLACEHOLDER
+        password: Zeyf}]V0Mv3n9oj7
       nova:
         username: nova
         password: nova
