@@ -416,60 +416,6 @@ pod:
         memory: "512Mi"
         cpu: "500m"
 
-  # Volume mounts
-  mounts:
-    nova_compute:
-      nova_compute:
-        # Libvirt socket
-        - name: libvirt-socket
-          mountPath: /var/run/libvirt
-        # Instance storage
-        - name: nova-instances
-          mountPath: /var/lib/nova/instances
-        # Device mapper
-        - name: dev
-          mountPath: /dev
-        # Cgroup access
-        - name: cgroup
-          mountPath: /sys/fs/cgroup
-        # Host modules
-        - name: lib-modules
-          mountPath: /lib/modules
-          readOnly: true
-        # Machine ID
-        - name: machine-id
-          mountPath: /etc/machine-id
-          readOnly: true
-
-  # Host path volumes
-  volumes:
-    # Libvirt runtime
-    - name: libvirt-socket
-      hostPath:
-        path: /var/run/libvirt
-        type: DirectoryOrCreate
-    # Instance storage path on host
-    - name: nova-instances
-      hostPath:
-        path: /var/lib/nova/instances
-        type: DirectoryOrCreate
-    # Device access
-    - name: dev
-      hostPath:
-        path: /dev
-    # Cgroup filesystem
-    - name: cgroup
-      hostPath:
-        path: /sys/fs/cgroup
-    # Kernel modules
-    - name: lib-modules
-      hostPath:
-        path: /lib/modules
-    # Machine ID
-    - name: machine-id
-      hostPath:
-        path: /etc/machine-id
-
 # Manifests - Deploy ONLY compute, NO control plane
 manifests:
   configmap_bin: true
