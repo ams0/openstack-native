@@ -231,6 +231,10 @@ endpoints:
 
 # Nova configuration
 conf:
+  # Disable Ceph storage backend
+  ceph:
+    enabled: false
+
   # Disable RabbitMQ HA policies (not compatible with RabbitMQ 4.x)
   rabbitmq:
     policies: []
