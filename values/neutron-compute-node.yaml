@@ -1,0 +1,297 @@
+# OpenStack-Helm Neutron values for Compute Nodes
+# This configuration deploys ONLY the Neutron OVS agent on compute nodes
+# The Neutron API server and other agents (DHCP, L3, Metadata) run on control plane or network nodes
+#
+# Deployment:
+#   helm install neutron-compute openstack-helm/neutron \
+#     --namespace openstack \
+#     -f /path/to/neutron-compute-node.yaml
+
+# Label compute nodes first:
+#   kubectl label node <node-name> openstack-compute-node=enabled
+
+labels:
+  # Target specific compute nodes with openstack-compute-node label
+  agent:
+    dhcp:
+      node_selector_key: openstack-compute-node
+      node_selector_value: enabled
+    l3:
+      node_selector_key: openstack-compute-node
+      node_selector_value: enabled
+    metadata:
+      node_selector_key: openstack-compute-node
+      node_selector_value: enabled
+    ovs:
+      node_selector_key: openstack-compute-node
+      node_selector_value: enabled
+  job:
+    node_selector_key: openstack-compute-node
+    node_selector_value: enabled
+  test:
+    node_selector_key: openstack-compute-node
+    node_selector_value: enabled
+
+# Network backend configuration
+network:
+  backend:
+    - openvswitch
+
+  # Interface configuration for compute nodes
+  interface:
+    # Tunnel interface for VXLAN traffic between compute and network nodes
+    tunnel: "eth0"  # Change to your tunnel network interface
+
+# Neutron configuration
+conf:
+  neutron:
+    DEFAULT:
+      # Core plugin - must match control plane
+      core_plugin: ml2
+      # Interface driver for agents
+      interface_driver: openvswitch
+      # Don't run API on compute nodes
+      api_workers: 0
+      rpc_workers: 1
+
+  # Disable RabbitMQ HA policies
+  rabbitmq:
+    policies: []
+
+  # ML2 Plugin configuration (must match control plane)
+  plugins:
+    ml2_conf:
+      ml2:
+        type_drivers: flat,vlan,vxlan,gre
+        tenant_network_types: vxlan,vlan
+        mechanism_drivers: openvswitch,l2population
+        extension_drivers: port_security,dns_domain_ports
+
+      ml2_type_vxlan:
+        # VNI ranges for tenant networks (must match control plane)
+        vni_ranges: 1:100000
+
+    # OVS agent configuration
+    openvswitch_agent:
+      agent:
+        tunnel_types: vxlan
+        l2_population: True
+        # ARP responder for better performance
+        arp_responder: True
+        # Distributed routing disabled on compute-only nodes
+        enable_distributed_routing: False
+
+      ovs:
+        # No bridge mappings on compute nodes (provider networks handled by network nodes)
+        bridge_mappings: ""
+        # Local IP for VXLAN tunnels (will be auto-detected from tunnel interface)
+        local_ip: null
+        # Integration bridge (default: br-int)
+        integration_bridge: br-int
+        # Tunnel bridge (default: br-tun)
+        tunnel_bridge: br-tun
+
+      securitygroup:
+        firewall_driver: openvswitch
+        enable_security_group: True
+        enable_ipset: True
+
+# Endpoints - connect to control plane services
+endpoints:
+  # Memcached configuration
+  oslo_cache:
+    hosts:
+      default: memcached-service.openstack.svc.cluster.local
+    port:
+      memcache:
+        default: 11211
+
+  # RabbitMQ configuration (non-TLS)
+  oslo_messaging:
+    scheme: rabbit
+    hosts:
+      default: openstack-rabbitmq.openstack.svc.cluster.local
+    port:
+      amqp:
+        default: 5672  # AMQP port (non-TLS)
+    path: /neutron
+    auth:
+      admin:
+        username: default_user_II86jGvszXIUUpK7cYU
+        password: cOu7isxpuXU_7swX8oROnyS5-kL-QKRf
+      neutron:
+        username: neutron
+        password: neutron
+    statefulset: null
+
+  # MariaDB configuration
+  oslo_db:
+    scheme: mysql+pymysql
+    hosts:
+      default: mariadb-basic.openstack.svc.cluster.local
+    port:
+      mysql:
+        default: 3306
+    path: /neutron
+    auth:
+      neutron:
+        username: neutron
+        password: neutron
+      admin:
+        username: root
+        password: Zeyf}]V0Mv3n9oj7
+
+  # Keystone configuration
+  identity:
+    name: keystone
+    auth:
+      admin:
+        region_name: RegionOne
+        username: admin
+        password: password
+        project_name: admin
+        user_domain_name: default
+        project_domain_name: default
+      neutron:
+        role: admin
+        region_name: RegionOne
+        username: neutron
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+      nova:
+        role: admin
+        region_name: RegionOne
+        username: nova
+        password: password
+        project_name: service
+        user_domain_name: service
+        project_domain_name: service
+    hosts:
+      default: keystone.openstack.svc.cluster.local
+      internal: keystone-api.openstack.svc.cluster.local
+    path:
+      default: /v3
+    scheme:
+      default: http
+    port:
+      api:
+        default: 80
+        internal: 5000
+
+  # Nova configuration (for notifications)
+  compute:
+    name: nova
+    hosts:
+      default: nova-api.openstack.svc.cluster.local
+      public: nova.openstack.svc.cluster.local
+    host_fqdn_override:
+      default: null
+    path:
+      default: "/v2.1"
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 8774
+        public: 80
+      metadata:
+        default: 8775
+
+  # Neutron API endpoint (control plane)
+  network:
+    name: neutron
+    hosts:
+      default: neutron-server.openstack.svc.cluster.local
+      public: neutron.openstack.svc.cluster.local
+    host_fqdn_override:
+      default: null
+    path:
+      default: null
+    scheme:
+      default: 'http'
+    port:
+      api:
+        default: 9696
+        public: 80
+
+# Pod resources
+pod:
+  resources:
+    enabled: true
+    neutron_ovs_agent:
+      requests:
+        memory: "256Mi"
+        cpu: "200m"
+      limits:
+        memory: "1024Mi"
+        cpu: "1000m"
+
+  # Security context for OVS agent
+  security_context:
+    neutron_ovs_agent:
+      pod:
+        runAsUser: 0  # Required for OVS access
+        hostNetwork: true
+      container:
+        neutron_ovs_agent:
+          privileged: true
+          capabilities:
+            add:
+              - NET_ADMIN
+              - SYS_ADMIN
+
+# Dependencies
+dependencies:
+  static:
+    neutron_ovs_agent:
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: oslo_messaging
+        - endpoint: internal
+          service: identity
+
+# Manifests - COMPUTE NODES ONLY
+# Deploy ONLY OVS agent, disable everything else
+manifests:
+  configmap_bin: true
+  configmap_etc: true
+
+  # Control plane - DISABLED
+  deployment_server: false           # ❌ API Server (runs on control plane)
+
+  # Jobs - DISABLED (already done on control plane)
+  job_bootstrap: false
+  job_db_init: false
+  job_db_sync: false
+  job_db_drop: false
+  job_image_repo_sync: false
+  job_ks_endpoints: false
+  job_ks_service: false
+  job_ks_user: false
+  job_rabbit_init: false
+
+  # Services - DISABLED
+  service_server: false              # ❌ API Service (runs on control plane)
+  ingress_server: false
+  service_ingress_server: false
+  pdb_server: false
+
+  # Agents - ONLY OVS ENABLED
+  daemonset_ovs_agent: true          # ✅ OVS Agent for VM networking
+  daemonset_dhcp_agent: false        # ❌ DHCP (runs on network nodes)
+  daemonset_l3_agent: false          # ❌ L3/Router (runs on network nodes)
+  daemonset_metadata_agent: false    # ❌ Metadata (runs on network nodes)
+  daemonset_lb_agent: false          # ❌ Linux Bridge (using OVS)
+  daemonset_sriov_agent: false       # ❌ SR-IOV (if needed, enable separately)
+  daemonset_netns_cleanup_cron: false # ❌ Not needed for compute-only
+
+  # Other
+  pod_rally_test: false
+
+# Disable TLS for RabbitMQ connections (matching control plane)
+tls:
+  oslo_messaging: false
