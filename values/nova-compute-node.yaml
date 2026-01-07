@@ -8,16 +8,16 @@ labels:
   #   kubectl label node <node-name> openstack-compute-node=enabled
   agent:
     compute:
-      node_selector_key: openstack-control-plane
+      node_selector_key: openstack-compute-node
       node_selector_value: enabled
     compute_ironic:
-      node_selector_key: openstack-control-plane
+      node_selector_key: openstack-compute-node
       node_selector_value: enabled
   job:
-    node_selector_key: openstack-control-plane
+    node_selector_key: openstack-compute-node
     node_selector_value: enabled
   test:
-    node_selector_key: openstack-control-plane
+    node_selector_key: openstack-compute-node
     node_selector_value: enabled
 
 # Nova Compute Configuration
