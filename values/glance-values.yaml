@@ -4,14 +4,14 @@ storage: pvc
 
 labels:
   api:
-    node_selector_key: kubernetes.io/os
-    node_selector_value: linux
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
   job:
-    node_selector_key: kubernetes.io/os
-    node_selector_value: linux
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
   test:
-    node_selector_key: kubernetes.io/os
-    node_selector_value: linux
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
 
 # Storage volume configuration for PVC backend
 volume:
