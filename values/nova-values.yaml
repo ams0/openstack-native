@@ -279,10 +279,6 @@ pod:
         cpu: "100m"
         memory: "128Mi"
 
-# Disable RBD/Ceph storage
-rbd_pool:
-  enabled: false
-
 # Manifests - Control Plane + Compute Nodes
 manifests:
   daemonset_compute: true            # Enable nova-compute on openstack-compute-node nodes
