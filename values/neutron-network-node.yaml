@@ -8,22 +8,22 @@ labels:
   #   kubectl label node <node-name> openstack-network-node=enabled
   agent:
     dhcp:
-      node_selector_key: openstack-network-node
+      node_selector_key: openstack-control-plane
       node_selector_value: enabled
     l3:
-      node_selector_key: openstack-network-node
+      node_selector_key: openstack-control-plane
       node_selector_value: enabled
     metadata:
-      node_selector_key: openstack-network-node
+      node_selector_key: openstack-control-plane
       node_selector_value: enabled
     ovs:
-      node_selector_key: openstack-network-node
+      node_selector_key: openstack-control-plane
       node_selector_value: enabled
   job:
-    node_selector_key: openstack-network-node
+    node_selector_key: openstack-control-plane
     node_selector_value: enabled
   test:
-    node_selector_key: openstack-network-node
+    node_selector_key: openstack-control-plane
     node_selector_value: enabled
 
 # Network backend configuration
