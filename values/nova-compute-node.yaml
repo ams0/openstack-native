@@ -241,7 +241,7 @@ endpoints:
     scheme: rabbit
     port:
       amqp:
-        default: 5671  # AMQPS port (TLS)
+        default: 5672  # AMQP port (non-TLS)
     path: /nova
 
   # Memcached (control plane)
