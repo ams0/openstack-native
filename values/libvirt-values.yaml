@@ -23,12 +23,12 @@ conf:
   # Libvirt configuration
   libvirt:
     # Listen on TCP for live migration
-    listen_tcp: 1
-    listen_tls: 0
-    tcp_port: 16509
+    listen_tcp: "1"
+    listen_tls: "0"
+    tcp_port: "16509"
 
     # Authentication for live migration
-    auth_tcp: none
+    auth_tcp: "none"
 
     # Logging
     log_level: 3
