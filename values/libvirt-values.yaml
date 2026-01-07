@@ -41,26 +41,8 @@ conf:
     user: "nova"
     group: "kvm"
 
-# Pod security context
+# Pod configuration
 pod:
-  security_context:
-    libvirt:
-      pod:
-        runAsUser: 0
-        hostNetwork: true
-        hostPID: true
-        hostIPC: true
-      container:
-        libvirt:
-          privileged: true
-          capabilities:
-            add:
-              - SYS_ADMIN
-              - NET_ADMIN
-              - SYS_NICE
-              - SYS_PTRACE
-              - DAC_READ_SEARCH
-
   # Resource limits
   resources:
     enabled: true
