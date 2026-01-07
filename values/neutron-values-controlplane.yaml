@@ -53,9 +53,7 @@ conf:
         # Tenant network types - what tenants can create
         tenant_network_types: vxlan,vlan
         # Mechanism drivers - how networks are implemented
-        # Configure based on what your compute nodes will use
-        #mechanism_drivers: openvswitch,linuxbridge,l2population
-        mechanism_drivers: null
+        mechanism_drivers: openvswitch,l2population
         # Extensions
         extension_drivers: port_security,dns_domain_ports
 
