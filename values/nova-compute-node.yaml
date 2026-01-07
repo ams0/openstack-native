@@ -570,6 +570,6 @@ dependencies:
       daemonset:
         - nova-libvirt
 
-# Enable TLS for RabbitMQ connections
+# Disable TLS for RabbitMQ connections (matching control plane)
 tls:
-  oslo_messaging: true
+  oslo_messaging: false
