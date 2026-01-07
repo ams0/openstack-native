@@ -244,6 +244,12 @@ conf:
       # Scheduler configuration
       scheduler_default_filters: AvailabilityZoneFilter,ComputeFilter,ComputeCapabilitiesFilter,ImagePropertiesFilter,ServerGroupAntiAffinityFilter,ServerGroupAffinityFilter
 
+    # Libvirt configuration for compute nodes
+    libvirt:
+      virt_type: qemu  # Use qemu on AKS (no nested virtualization)
+      cpu_mode: host-passthrough
+      live_migration_uri: qemu+ssh://nova@%s/system?keyfile=/var/lib/nova/.ssh/id_rsa&no_verify=1
+
 # Pod configuration - increase file descriptor limits
 pod:
   security_context:
