@@ -417,9 +417,10 @@ pod:
         cpu: "500m"
 
 # Manifests - Deploy ONLY compute, NO control plane
+# Disable shared resources to avoid conflicts with control plane
 manifests:
-  configmap_bin: true
-  configmap_etc: true
+  configmap_bin: false                # ❌ Use control plane configmaps
+  configmap_etc: false                # ❌ Use control plane configmaps
 
   # Control plane - DISABLED
   deployment_api_metadata: false      # ❌ Metadata API (runs on control plane)
