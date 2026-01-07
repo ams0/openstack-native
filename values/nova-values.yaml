@@ -294,6 +294,6 @@ dependencies:
     cell_setup:
       pod: []
 
-# Enable TLS for RabbitMQ connections
+# Disable TLS for RabbitMQ connections (certs not configured)
 tls:
-  oslo_messaging: true
+  oslo_messaging: false
