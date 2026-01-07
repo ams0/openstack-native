@@ -4,29 +4,29 @@
 labels:
   agent:
     dhcp:
-      node_selector_key: kubernetes.io/os
-      node_selector_value: linux
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
     l3:
-      node_selector_key: kubernetes.io/os
-      node_selector_value: linux
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
     metadata:
-      node_selector_key: kubernetes.io/os
-      node_selector_value: linux
+      node_selector_key: openstack-control-plane
+      node_selector_value: enabled
   lb:
-    node_selector_key: kubernetes.io/os
-    node_selector_value: linux
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
   ovs:
-    node_selector_key: kubernetes.io/os
-    node_selector_value: linux
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
   server:
-    node_selector_key: kubernetes.io/os
-    node_selector_value: linux
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
   test:
-    node_selector_key: kubernetes.io/os
-    node_selector_value: linux
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
   job:
-    node_selector_key: kubernetes.io/os
-    node_selector_value: linux
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
 
 # Network backend - using Linux Bridge for simplicity
 # Options: openvswitch, linuxbridge, ovn
