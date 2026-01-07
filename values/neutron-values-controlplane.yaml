@@ -307,15 +307,15 @@ manifests:
   service_ingress_server: false
   service_server: true               # ✅ API Service - YES
 
-  # ❌ DISABLE ALL AGENTS - Will run on bare metal
-  daemonset_dhcp_agent: false        # ❌ Run on compute nodes or centralized
-  daemonset_l3_agent: false          # ❌ Run on compute nodes or centralized
-  daemonset_lb_agent: false          # ❌ Run on compute nodes
-  daemonset_metadata_agent: false    # ❌ Run on compute nodes or centralized
-  daemonset_ovs_agent: false         # ❌ Run on compute nodes
-  daemonset_sriov_agent: false       # ❌ SR-IOV (if needed) on compute nodes
-  daemonset_netns_cleanup_cron: false # ❌ Not needed for control plane only
+  # Agents - Enable OVS agent on compute nodes
+  daemonset_dhcp_agent: false        # ❌ Disable for now
+  daemonset_l3_agent: false          # ❌ Disable for now
+  daemonset_lb_agent: false          # ❌ Not using Linux Bridge
+  daemonset_metadata_agent: false    # ❌ Disable for now
+  daemonset_ovs_agent: true          # ✅ Enable OVS agent on compute nodes
+  daemonset_sriov_agent: false       # ❌ Not using SR-IOV
+  daemonset_netns_cleanup_cron: false # ❌ Not needed
 
-# Enable TLS for RabbitMQ connections
+# Disable TLS for RabbitMQ connections (matching Nova configuration)
 tls:
-  oslo_messaging: true
+  oslo_messaging: false
