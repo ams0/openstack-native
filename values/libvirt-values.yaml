@@ -1,0 +1,79 @@
+# Libvirt Helm Chart Values for Compute Nodes
+# Deploy libvirt on nodes labeled with openstack-compute-node=enabled
+
+labels:
+  agent:
+    libvirt:
+      node_selector_key: openstack-compute-node
+      node_selector_value: enabled
+
+# Network backend configuration
+network:
+  backend:
+    - openvswitch
+
+# Disable Ceph integration (using local storage)
+ceph_client:
+  configmap: null
+
+conf:
+  ceph:
+    enabled: false
+
+  # Libvirt configuration
+  libvirt:
+    # Listen on TCP for live migration
+    listen_tcp: 1
+    listen_tls: 0
+    tcp_port: 16509
+
+    # Authentication for live migration
+    auth_tcp: none
+
+    # Logging
+    log_level: 3
+    log_outputs: "3:syslog"
+    log_filters: "1:libvirt 1:qemu 1:conf 1:security 3:event 3:json 3:file 3:object 1:util"
+
+  # QEMU configuration for AKS (no nested virtualization)
+  qemu:
+    stdio_handler: "file"
+    user: "nova"
+    group: "kvm"
+
+# Pod security context
+pod:
+  security_context:
+    libvirt:
+      pod:
+        runAsUser: 0
+        hostNetwork: true
+        hostPID: true
+        hostIPC: true
+      container:
+        libvirt:
+          privileged: true
+          capabilities:
+            add:
+              - SYS_ADMIN
+              - NET_ADMIN
+              - SYS_NICE
+              - SYS_PTRACE
+              - DAC_READ_SEARCH
+
+  # Resource limits
+  resources:
+    enabled: true
+    libvirt:
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+      requests:
+        memory: "512Mi"
+        cpu: "500m"
+
+# Storage for libvirt
+storage:
+  # Instance storage using host path
+  host:
+    path: /var/lib/libvirt
