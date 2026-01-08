@@ -297,7 +297,7 @@ pod:
 # Manifests - Control Plane + Compute Nodes
 manifests:
   daemonset_compute: true            # Enable nova-compute on openstack-compute-node nodes
-  daemonset_libvirt: false           # Disable - using separate libvirt chart
+  daemonset_libvirt: true            # Enable libvirt as sidecar in nova-compute pod
   daemonset_compute_ironic: false    # Disable ironic compute
   statefulset_compute_ironic: false  # Disable ironic statefulset
 
