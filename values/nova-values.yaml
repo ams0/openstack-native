@@ -256,7 +256,7 @@ conf:
 
     # Libvirt configuration for compute nodes
     libvirt:
-      connection_uri: "qemu:///system"  # Direct connection without socket path
+      connection_uri: "qemu+unix:///system?socket=/run/libvirt/libvirt-sock"  # Connect via Unix socket
       virt_type: qemu  # Use qemu on AKS (no nested virtualization)
       cpu_mode: host-passthrough
       live_migration_uri: qemu+ssh://nova@%s/system?keyfile=/var/lib/nova/.ssh/id_rsa&no_verify=1
