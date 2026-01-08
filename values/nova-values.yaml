@@ -288,13 +288,11 @@ pod:
     compute:
       default:
         startup:
-          enabled: true
-          params:
-            initialDelaySeconds: 30  # Give nova-compute time to initialize
-            failureThreshold: 120
-            periodSeconds: 10
-            successThreshold: 1
-            timeoutSeconds: 70
+          enabled: false  # Temporarily disable to debug
+        liveness:
+          enabled: false  # Temporarily disable to debug
+        readiness:
+          enabled: false  # Temporarily disable to debug
 
 # Manifests - Control Plane + Compute Nodes
 manifests:
