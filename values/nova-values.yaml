@@ -288,16 +288,30 @@ pod:
     compute:
       default:
         startup:
-          enabled: false  # Temporarily disable to debug
+          enabled: true
+          params:
+            initialDelaySeconds: 60  # Give more time for initialization
+            failureThreshold: 120
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 70
         liveness:
-          enabled: false  # Temporarily disable to debug
+          enabled: true
+          params:
+            initialDelaySeconds: 120
+            periodSeconds: 90
+            timeoutSeconds: 70
         readiness:
-          enabled: false  # Temporarily disable to debug
+          enabled: true
+          params:
+            initialDelaySeconds: 60
+            periodSeconds: 90
+            timeoutSeconds: 70
 
 # Manifests - Control Plane + Compute Nodes
 manifests:
   daemonset_compute: true            # Enable nova-compute on openstack-compute-node nodes
-  daemonset_libvirt: true            # Enable libvirt as sidecar in nova-compute pod
+  daemonset_libvirt: false           # Disable - using separate libvirt chart
   daemonset_compute_ironic: false    # Disable ironic compute
   statefulset_compute_ironic: false  # Disable ironic statefulset
 
