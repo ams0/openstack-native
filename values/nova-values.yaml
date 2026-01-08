@@ -280,6 +280,19 @@ pod:
         cpu: "100m"
         memory: "128Mi"
 
+  # Configure health probes for nova-compute
+  probes:
+    compute:
+      default:
+        startup:
+          enabled: true
+          params:
+            initialDelaySeconds: 30  # Give nova-compute time to initialize
+            failureThreshold: 120
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 70
+
 # Manifests - Control Plane + Compute Nodes
 manifests:
   daemonset_compute: true            # Enable nova-compute on openstack-compute-node nodes
