@@ -250,6 +250,9 @@ conf:
       vncserver_proxyclient_address: "0.0.0.0"
       # Scheduler configuration
       scheduler_default_filters: AvailabilityZoneFilter,ComputeFilter,ComputeCapabilitiesFilter,ImagePropertiesFilter,ServerGroupAntiAffinityFilter,ServerGroupAffinityFilter
+      # Enable debug logging
+      debug: true
+      log_level: DEBUG
 
     # Libvirt configuration for compute nodes
     libvirt:
