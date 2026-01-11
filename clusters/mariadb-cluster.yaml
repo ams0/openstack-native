@@ -85,10 +85,10 @@ spec:
           - name: nova
             characterSet: utf8mb4
             collate: utf8mb4_unicode_ci
-          - name: nova_api
+          - name: nova-api
             characterSet: utf8mb4
             collate: utf8mb4_unicode_ci
-          - name: nova_cell0
+          - name: nova-cell0
             characterSet: utf8mb4
             collate: utf8mb4_unicode_ci
 
