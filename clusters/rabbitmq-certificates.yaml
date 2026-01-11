@@ -37,6 +37,9 @@ spec:
   dnsNames:
     - "rabbit.tls-nodes.openstack.svc.cluster.local"
     - "*.tls-nodes.openstack.svc.cluster.local"
+    - "openstack-rabbitmq.openstack.svc"
+    - "openstack-rabbitmq.openstack.svc.cluster.local"
+    - "*.openstack-rabbitmq.openstack.svc.cluster.local"
   commonName: "rabbit.tls-nodes.openstack.svc.cluster.local"
   secretName: rabbitmq-tls-secret
   issuerRef:
