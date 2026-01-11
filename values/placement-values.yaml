@@ -35,7 +35,7 @@ endpoints:
         password: placement  # Helm will create user with this password
       admin:
         username: root
-        password: PASSWORD_PLACEHOLDER
+        password: Zeyf}]V0Mv3n9oj7
 
   # Keystone configuration
   identity:

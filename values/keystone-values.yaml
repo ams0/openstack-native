@@ -30,8 +30,8 @@ endpoints:
     path: /keystone
     auth:
       admin:
-        username: RABBITMQ_ADMIN_USER
-        password: RABBITMQ_ADMIN_PASSWORD
+        username: default_user_II86jGvszXIUUpK7cYU
+        password: cOu7isxpuXU_7swX8oROnyS5-kL-QKRf
         secret:
           tls:
             internal: rabbitmq-tls-secret
@@ -54,7 +54,7 @@ endpoints:
         password: keystone  # Helm will create user with this password
       admin:
         username: root
-        password: PASSWORD_PLACEHOLDER
+        password: Zeyf}]V0Mv3n9oj7
 
 conf:
   # Disable RabbitMQ HA policies for single-node setup
