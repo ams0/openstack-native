@@ -12,6 +12,7 @@ spec:
         type: LoadBalancer
   tls:
     secretName: rabbitmq-tls-secret
+    caSecretName: openstack-ca-secret
 ---
 apiVersion: rabbitmq.com/v1beta1
 kind: Vhost
