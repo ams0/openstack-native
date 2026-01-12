@@ -1,0 +1,63 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: keystone
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  project: default
+  source:
+    repoURL: https://opendev.org/openstack/openstack-helm
+    targetRevision: master
+    path: keystone
+    helm:
+      releaseName: keystone
+      # Base values from git
+      valueFiles:
+        - ../../values/keystone-values.yaml
+      # Override with secret values at deployment time
+      values: |
+        endpoints:
+          oslo_db:
+            auth:
+              admin:
+                username: root
+                password: ${MARIADB_ROOT_PASSWORD}
+              keystone:
+                username: keystone
+                password: keystone
+          oslo_messaging:
+            auth:
+              admin:
+                username: ${RABBITMQ_ADMIN_USER}
+                password: ${RABBITMQ_ADMIN_PASSWORD}
+              keystone:
+                username: keystone
+                password: ${RABBITMQ_KEYSTONE_PASSWORD}
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openstack
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+# ConfigMap with environment variables for ArgoCD to inject
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keystone-secrets-envs
+  namespace: argocd
+data:
+  # These will be populated by a Job or external process
+  # ArgoCD can reference these via $ref
+  MARIADB_ROOT_PASSWORD: ""
+  RABBITMQ_ADMIN_USER: "admin"
+  RABBITMQ_ADMIN_PASSWORD: ""
+  RABBITMQ_KEYSTONE_PASSWORD: "keystone"
