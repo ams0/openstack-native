@@ -10,6 +10,9 @@ spec:
     service:
       spec:
         type: LoadBalancer
+  secretBackend:
+    externalSecret:
+      name: openstack-rabbitmq-default-user
   tls:
     secretName: rabbitmq-tls-secret
     caSecretName: openstack-ca-secret
