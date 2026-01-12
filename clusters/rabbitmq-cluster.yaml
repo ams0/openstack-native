@@ -22,7 +22,8 @@ metadata:
 spec:
   name: keystone # name of the vhost
   rabbitmqClusterReference:
-    name: openstack-rabbitmq
+    connectionSecret:
+      name: rabbitmq-management-connection
 ---
 #kubectl create secret generic rabbitmq-keystone-user --from-literal=username=keystone --from-literal=password=keystone
 apiVersion: rabbitmq.com/v1beta1
@@ -34,7 +35,8 @@ spec:
   tags:
   - administrator
   rabbitmqClusterReference:
-    name: openstack-rabbitmq
+    connectionSecret:
+      name: rabbitmq-management-connection
   importCredentialsSecret:
     name: rabbitmq-keystone-user # name of the secret
 ---
@@ -52,4 +54,5 @@ spec:
     configure: ".*"
     read: ".*"
   rabbitmqClusterReference:
-    name: openstack-rabbitmq
+    connectionSecret:
+      name: rabbitmq-management-connection
