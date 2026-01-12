@@ -15,7 +15,7 @@ spec:
       include: 'rabbitmq-*.yaml'
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd
+    namespace: openstack
   syncPolicy:
     automated:
       prune: true
