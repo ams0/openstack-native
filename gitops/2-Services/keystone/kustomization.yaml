@@ -1,0 +1,86 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: openstack
+
+# Use Kustomize's Helm chart inflator
+helmCharts:
+  - name: keystone
+    repo: https://opendev.org/openstack/openstack-helm
+    releaseName: keystone
+    namespace: openstack
+    version: latest
+    valuesFile: values-base.yaml
+    valuesInline:
+      # These will be replaced by Kustomize from secrets
+      endpoints:
+        oslo_db:
+          auth:
+            admin:
+              username: root
+              password: PLACEHOLDER_MARIADB_PASSWORD
+            keystone:
+              username: keystone
+              password: keystone
+        oslo_messaging:
+          auth:
+            admin:
+              username: PLACEHOLDER_RABBITMQ_USER
+              password: PLACEHOLDER_RABBITMQ_PASSWORD
+            keystone:
+              username: keystone
+              password: PLACEHOLDER_KEYSTONE_RABBITMQ_PASSWORD
+
+# Replace placeholders with actual secret values
+replacements:
+  - source:
+      kind: Secret
+      name: mariadb-basic-root
+      fieldPath: data.password
+    targets:
+      - select:
+          kind: HelmRelease
+          name: keystone
+        fieldPaths:
+          - spec.values.endpoints.oslo_db.auth.admin.password
+        options:
+          create: true
+
+  - source:
+      kind: Secret
+      name: openstack-rabbitmq-default-user
+      fieldPath: data.username
+    targets:
+      - select:
+          kind: HelmRelease
+          name: keystone
+        fieldPaths:
+          - spec.values.endpoints.oslo_messaging.auth.admin.username
+        options:
+          create: true
+
+  - source:
+      kind: Secret
+      name: openstack-rabbitmq-default-user
+      fieldPath: data.password
+    targets:
+      - select:
+          kind: HelmRelease
+          name: keystone
+        fieldPaths:
+          - spec.values.endpoints.oslo_messaging.auth.admin.password
+        options:
+          create: true
+
+  - source:
+      kind: Secret
+      name: rabbitmq-keystone-user
+      fieldPath: data.password
+    targets:
+      - select:
+          kind: HelmRelease
+          name: keystone
+        fieldPaths:
+          - spec.values.endpoints.oslo_messaging.auth.keystone.password
+        options:
+          create: true

@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: keystone
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/ams0/openstack-native
+    targetRevision: main
+    path: charts/openstack-with-secrets/keystone
+    plugin:
+      name: argocd-lovely-plugin
+      env:
+        - name: HELM_VALUES
+          value: |
+            # This will be populated by the PreSync job
+            # The job reads secrets and creates a values file
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openstack
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
