@@ -24,7 +24,8 @@ spec:
       kind: ValidatingWebhookConfiguration
       name: cert-manager-webhook
       jqPathExpressions:
-        - .webhooks[].objectSelector.matchExpressions
+        - '.webhooks[].namespaceSelector.matchExpressions[] | select(.key == "kubernetes.azure.com/managedby")'
+        - '.webhooks[].namespaceSelector.matchExpressions[] | select(.key == "control-plane")' 
   syncPolicy:
     automated:
       prune: true
