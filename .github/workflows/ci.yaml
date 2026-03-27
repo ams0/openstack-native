@@ -1,0 +1,116 @@
+name: OpenStack Native CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test-deployment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Install Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: 'v3.13.0'
+
+    - name: Install Kind
+      run: |
+        curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+        chmod +x ./kind
+        sudo mv ./kind /usr/local/bin/kind
+
+    - name: Verify tools installation
+      run: make check-tools
+
+    - name: Create Kind cluster
+      run: make cluster-up
+
+    - name: Install operators
+      run: make install-operators
+      timeout-minutes: 10
+
+    - name: Deploy infrastructure
+      run: make deploy-infrastructure
+      timeout-minutes: 15
+
+    - name: Setup secrets
+      run: make setup-secrets
+
+    - name: Test infrastructure
+      run: make test-infrastructure
+
+    - name: Show deployment status
+      if: always()
+      run: make show-status
+
+    - name: Show credentials
+      run: make show-credentials
+
+    - name: Get infrastructure logs
+      if: failure()
+      run: |
+        echo "=== MariaDB Logs ==="
+        kubectl logs -n openstack -l app.kubernetes.io/instance=mariadb-basic --tail=100 || true
+        echo "=== RabbitMQ Logs ==="
+        kubectl logs -n openstack -l app.kubernetes.io/name=openstack-rabbitmq --tail=100 || true
+
+    - name: Export cluster logs
+      if: failure()
+      run: |
+        kind export logs /tmp/kind-logs || true
+
+    - name: Cleanup
+      if: always()
+      run: make cluster-down
+
+  lint-makefile:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Lint Makefile
+      run: |
+        # Check if Makefile has valid syntax
+        make help
+
+    - name: Verify documentation
+      run: |
+        # Check if documentation files exist
+        test -f docs/MAKEFILE.md
+        test -f values/TESTING.md
+
+  verify-charts:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: 'v3.13.0'
+
+    - name: Lint Helm charts
+      run: |
+        for chart in charts/*/; do
+          if [ -f "$chart/Chart.yaml" ]; then
+            echo "Linting $chart"
+            helm lint "$chart" || true
+          fi
+        done

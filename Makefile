@@ -205,6 +205,10 @@ test: test-infrastructure test-services ## Run all tests
 	@echo ""
 	@echo "$(YELLOW)For detailed API testing, see values/TESTING.md$(NC)"
 
+test-api: ## Run comprehensive API tests (requires services deployed and port-forwarding)
+	@echo "$(YELLOW)Running comprehensive API tests...$(NC)"
+	@bash scripts/test-services.sh
+
 show-status: ## Show status of all components
 	@echo "$(YELLOW)OpenStack Native Deployment Status$(NC)"
 	@echo ""
