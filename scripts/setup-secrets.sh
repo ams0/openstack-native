@@ -47,7 +47,7 @@ echo "Secrets created successfully!"
 echo ""
 
 # Option 2: Generate sealed secrets (GitOps-friendly)
-if command -v kubeseal &> /dev/null; then
+if command -v kubeseal &> /dev/null && kubectl get service sealed-secrets-controller -n kube-system &> /dev/null; then
   echo "Generating sealed secrets for GitOps..."
 
   # MariaDB root password
@@ -76,8 +76,7 @@ if command -v kubeseal &> /dev/null; then
   echo "Sealed secrets generated in clusters/ directory"
   echo "You can safely commit these to git!"
 else
-  echo "kubeseal not found. Install it to generate sealed secrets:"
-  echo "  brew install kubeseal"
+  echo "Skipping sealed secrets (kubeseal or sealed-secrets-controller not available)"
 fi
 
 echo ""

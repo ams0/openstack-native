@@ -83,9 +83,16 @@ install-operators: create-namespace ## Install required operators (cert-manager,
 	@kubectl wait --for=condition=Ready pods --all -n cert-manager --timeout=$(TIMEOUT) 2>/dev/null || true
 	@echo "$(GREEN)✓ cert-manager installed$(NC)"
 	@echo ""
-	@echo "$(YELLOW)Installing MariaDB Operator...$(NC)"
+	@echo "$(YELLOW)Adding Helm repositories...$(NC)"
 	@helm repo add mariadb-operator https://mariadb-operator.github.io/mariadb-operator 2>/dev/null || true
+	@helm repo add external-secrets https://charts.external-secrets.io 2>/dev/null || true
 	@helm repo update
+	@echo "$(YELLOW)Installing MariaDB Operator CRDs...$(NC)"
+	@helm upgrade --install mariadb-operator-crds mariadb-operator/mariadb-operator-crds \
+		--namespace mariadb-system --create-namespace \
+		--wait --timeout $(TIMEOUT) 2>/dev/null || echo "$(YELLOW)MariaDB CRDs may already be installed$(NC)"
+	@echo "$(GREEN)✓ MariaDB CRDs installed$(NC)"
+	@echo "$(YELLOW)Installing MariaDB Operator...$(NC)"
 	@helm upgrade --install mariadb-operator mariadb-operator/mariadb-operator \
 		--namespace mariadb-system --create-namespace \
 		--set webhook.cert.certManager.enabled=true \
@@ -94,15 +101,18 @@ install-operators: create-namespace ## Install required operators (cert-manager,
 	@echo ""
 	@echo "$(YELLOW)Installing RabbitMQ Cluster Operator...$(NC)"
 	@kubectl apply -f https://github.com/rabbitmq/cluster-operator/releases/latest/download/cluster-operator.yml
-	@echo "$(GREEN)✓ RabbitMQ Operator installed$(NC)"
+	@echo "$(GREEN)✓ RabbitMQ Cluster Operator installed$(NC)"
+	@echo "$(YELLOW)Installing RabbitMQ Messaging Topology Operator...$(NC)"
+	@kubectl apply -f https://github.com/rabbitmq/messaging-topology-operator/releases/latest/download/messaging-topology-operator-with-certmanager.yaml
+	@echo "$(YELLOW)Waiting for RabbitMQ Topology Operator to be ready...$(NC)"
+	@kubectl wait --for=condition=Ready pods -l app.kubernetes.io/name=messaging-topology-operator -n rabbitmq-system --timeout=$(TIMEOUT) 2>/dev/null || echo "$(YELLOW)Topology Operator may still be initializing$(NC)"
+	@echo "$(GREEN)✓ RabbitMQ Topology Operator installed$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Installing CloudNativePG Operator...$(NC)"
 	@kubectl apply -f https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.21/releases/cnpg-1.21.0.yaml
 	@echo "$(GREEN)✓ CloudNativePG Operator installed$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Installing External Secrets Operator...$(NC)"
-	@helm repo add external-secrets https://charts.external-secrets.io 2>/dev/null || true
-	@helm repo update
 	@helm upgrade --install external-secrets external-secrets/external-secrets \
 		--namespace external-secrets-system --create-namespace \
 		--wait --timeout $(TIMEOUT) 2>/dev/null || echo "$(YELLOW)External Secrets Operator may already be installed$(NC)"
@@ -118,16 +128,26 @@ deploy-infrastructure: create-namespace ## Deploy MariaDB, RabbitMQ, and Memcach
 	@echo "$(GREEN)✓ Memcached deployed$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Deploying MariaDB cluster...$(NC)"
-	@kubectl apply -f clusters/mariadb-cluster.yaml -n $(NAMESPACE) || echo "$(YELLOW)MariaDB may already be deployed$(NC)"
+	@kubectl apply -f clusters/mariadb-direct.yaml || echo "$(YELLOW)MariaDB may already be deployed$(NC)"
 	@echo "$(YELLOW)Waiting for MariaDB to be ready...$(NC)"
 	@kubectl wait --for=condition=Ready mariadb/mariadb-basic -n $(NAMESPACE) --timeout=$(TIMEOUT) 2>/dev/null || echo "$(YELLOW)MariaDB may still be initializing$(NC)"
 	@echo "$(GREEN)✓ MariaDB cluster deployed$(NC)"
 	@echo ""
+	@echo "$(YELLOW)Deploying TLS certificates for RabbitMQ...$(NC)"
+	@kubectl apply -f clusters/rabbitmq-certificates.yaml || echo "$(YELLOW)Certificates may already exist$(NC)"
+	@echo "$(YELLOW)Waiting for TLS certificates to be issued...$(NC)"
+	@kubectl wait --for=condition=Ready certificate/rabbitmq-server-cert -n $(NAMESPACE) --timeout=$(TIMEOUT) 2>/dev/null || echo "$(YELLOW)Certificates may still be issuing$(NC)"
+	@echo "$(GREEN)✓ TLS certificates deployed$(NC)"
+	@echo ""
 	@echo "$(YELLOW)Deploying RabbitMQ cluster...$(NC)"
-	@kubectl apply -f clusters/rabbitmq-cluster.yaml -n $(NAMESPACE) || echo "$(YELLOW)RabbitMQ may already be deployed$(NC)"
+	@kubectl apply -f clusters/rabbitmq-cluster.yaml || echo "$(YELLOW)RabbitMQ may already be deployed$(NC)"
 	@echo "$(YELLOW)Waiting for RabbitMQ to be ready...$(NC)"
-	@kubectl wait --for=condition=Ready rabbitmqcluster/openstack-rabbitmq -n $(NAMESPACE) --timeout=$(TIMEOUT) 2>/dev/null || echo "$(YELLOW)RabbitMQ may still be initializing$(NC)"
+	@kubectl wait --for=condition=ClusterAvailable rabbitmqcluster/openstack-rabbitmq -n $(NAMESPACE) --timeout=$(TIMEOUT) 2>/dev/null || echo "$(YELLOW)RabbitMQ may still be initializing$(NC)"
 	@echo "$(GREEN)✓ RabbitMQ cluster deployed$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Deploying RabbitMQ users and vhosts...$(NC)"
+	@kubectl apply -f clusters/rabbitmq-users.yaml || echo "$(YELLOW)RabbitMQ users may already exist$(NC)"
+	@echo "$(GREEN)✓ RabbitMQ users configured$(NC)"
 
 setup-secrets: ## Generate and setup OpenStack secrets
 	@echo "$(YELLOW)Setting up OpenStack secrets...$(NC)"
@@ -151,7 +171,7 @@ deploy-services-gitops: install-argocd ## Deploy OpenStack services via ArgoCD (
 	@echo "$(YELLOW)Services will be deployed automatically by ArgoCD$(NC)"
 	@echo "$(YELLOW)Monitor progress with: kubectl get applications -n $(ARGOCD_NAMESPACE)$(NC)"
 
-deploy-all: cluster-up install-operators deploy-infrastructure setup-secrets ## Full deployment: cluster + operators + infrastructure + secrets
+deploy-all: cluster-up install-operators setup-secrets deploy-infrastructure ## Full deployment: cluster + operators + secrets + infrastructure
 	@echo "$(GREEN)✓ Full deployment completed!$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Next steps:$(NC)"
@@ -284,15 +304,19 @@ clean-services: ## Delete OpenStack services
 
 clean-infrastructure: ## Delete infrastructure (MariaDB, RabbitMQ, Memcached)
 	@echo "$(YELLOW)Deleting infrastructure...$(NC)"
-	@kubectl delete -f clusters/rabbitmq-cluster.yaml -n $(NAMESPACE) 2>/dev/null || true
-	@kubectl delete -f clusters/mariadb-cluster.yaml -n $(NAMESPACE) 2>/dev/null || true
+	@kubectl delete -f clusters/rabbitmq-users.yaml 2>/dev/null || true
+	@kubectl delete -f clusters/rabbitmq-cluster.yaml 2>/dev/null || true
+	@kubectl delete -f clusters/rabbitmq-certificates.yaml 2>/dev/null || true
+	@kubectl delete -f clusters/mariadb-direct.yaml 2>/dev/null || true
 	@helm uninstall memcached -n $(NAMESPACE) 2>/dev/null || true
 	@echo "$(GREEN)✓ Infrastructure deleted$(NC)"
 
 clean-operators: ## Delete operators
 	@echo "$(YELLOW)Deleting operators...$(NC)"
 	@helm uninstall mariadb-operator -n mariadb-system 2>/dev/null || true
+	@helm uninstall mariadb-operator-crds -n mariadb-system 2>/dev/null || true
 	@helm uninstall external-secrets -n external-secrets-system 2>/dev/null || true
+	@kubectl delete -f https://github.com/rabbitmq/messaging-topology-operator/releases/latest/download/messaging-topology-operator-with-certmanager.yaml 2>/dev/null || true
 	@kubectl delete -f https://github.com/rabbitmq/cluster-operator/releases/latest/download/cluster-operator.yml 2>/dev/null || true
 	@kubectl delete -f https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.21/releases/cnpg-1.21.0.yaml 2>/dev/null || true
 	@kubectl delete -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.2/cert-manager.yaml 2>/dev/null || true

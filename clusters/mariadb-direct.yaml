@@ -1,0 +1,125 @@
+---
+# Raw MariaDB CR for direct kubectl deployment (non-GitOps flow)
+# For GitOps deployment via ArgoCD, use mariadb-cluster.yaml instead
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: MariaDB
+metadata:
+  name: mariadb-basic
+  namespace: openstack
+spec:
+  rootPasswordSecretKeyRef:
+    name: mariadb-basic-root
+    key: password
+    generate: false
+
+  image: mariadb:11.4
+
+  storage:
+    size: 10Gi
+
+  replicas: 1
+
+  galera:
+    enabled: false
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+
+  service:
+    type: ClusterIP
+
+  myCnf: |
+    [mariadb]
+    bind-address=*
+    default_storage_engine=InnoDB
+    binlog_format=row
+    innodb_autoinc_lock_mode=2
+    max_allowed_packet=256M
+    max_connections=200
+
+  podSecurityContext:
+    runAsUser: 999
+    runAsGroup: 999
+    fsGroup: 999
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Database
+metadata:
+  name: keystone
+  namespace: openstack
+spec:
+  mariaDbRef:
+    name: mariadb-basic
+  characterSet: utf8mb4
+  collate: utf8mb4_unicode_ci
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Database
+metadata:
+  name: glance
+  namespace: openstack
+spec:
+  mariaDbRef:
+    name: mariadb-basic
+  characterSet: utf8mb4
+  collate: utf8mb4_unicode_ci
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Database
+metadata:
+  name: placement
+  namespace: openstack
+spec:
+  mariaDbRef:
+    name: mariadb-basic
+  characterSet: utf8mb4
+  collate: utf8mb4_unicode_ci
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Database
+metadata:
+  name: neutron
+  namespace: openstack
+spec:
+  mariaDbRef:
+    name: mariadb-basic
+  characterSet: utf8mb4
+  collate: utf8mb4_unicode_ci
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Database
+metadata:
+  name: nova
+  namespace: openstack
+spec:
+  mariaDbRef:
+    name: mariadb-basic
+  characterSet: utf8mb4
+  collate: utf8mb4_unicode_ci
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Database
+metadata:
+  name: nova-api
+  namespace: openstack
+spec:
+  mariaDbRef:
+    name: mariadb-basic
+  characterSet: utf8mb4
+  collate: utf8mb4_unicode_ci
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Database
+metadata:
+  name: nova-cell0
+  namespace: openstack
+spec:
+  mariaDbRef:
+    name: mariadb-basic
+  characterSet: utf8mb4
+  collate: utf8mb4_unicode_ci

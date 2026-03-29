@@ -6,56 +6,11 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
+  replicas: 1
   override:
     service:
       spec:
-        type: LoadBalancer
-  secretBackend:
-    externalSecret:
-      name: openstack-rabbitmq-default-user
+        type: ClusterIP
   tls:
     secretName: rabbitmq-tls-secret
     caSecretName: openstack-ca-secret
----
-apiVersion: rabbitmq.com/v1beta1
-kind: Vhost
-metadata:
-  name: keystone # name of this custom resource
-  namespace: openstack
-spec:
-  name: keystone # name of the vhost
-  rabbitmqClusterReference:
-    connectionSecret:
-      name: rabbitmq-management-connection
----
-#kubectl create secret generic rabbitmq-keystone-user --from-literal=username=keystone --from-literal=password=keystone
-apiVersion: rabbitmq.com/v1beta1
-kind: User
-metadata:
-  name: keystone-user
-  namespace: openstack
-spec:
-  tags:
-  - administrator
-  rabbitmqClusterReference:
-    connectionSecret:
-      name: rabbitmq-management-connection
-  importCredentialsSecret:
-    name: rabbitmq-keystone-user # name of the secret
----
-apiVersion: rabbitmq.com/v1beta1
-kind: Permission
-metadata:
-  name: keystone-user-permission
-  namespace: openstack
-spec:
-  vhost: "keystone" # name of the vhost
-  userReference:
-    name: "keystone-user" # name of the RabbitMQ user
-  permissions:
-    write: ".*"
-    configure: ".*"
-    read: ".*"
-  rabbitmqClusterReference:
-    connectionSecret:
-      name: rabbitmq-management-connection
