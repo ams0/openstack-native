@@ -30,14 +30,14 @@ endpoints:
     path: /keystone
     auth:
       admin:
-        username: default_user_II86jGvszXIUUpK7cYU
-        password: cOu7isxpuXU_7swX8oROnyS5-kL-QKRf
+        username: admin
+        password: REPLACE_WITH_RABBITMQ_ADMIN_PASSWORD
         secret:
           tls:
             internal: rabbitmq-tls-secret
       keystone:
         username: keystone
-        password: keystone
+        password: REPLACE_WITH_RABBITMQ_KEYSTONE_PASSWORD
 
   # MariaDB configuration
   oslo_db:
@@ -51,10 +51,10 @@ endpoints:
     auth:
       keystone:
         username: keystone
-        password: keystone  # Helm will create user with this password
+        password: keystone
       admin:
         username: root
-        password: Zeyf}]V0Mv3n9oj7
+        password: REPLACE_WITH_MARIADB_ROOT_PASSWORD
 
 conf:
   # Disable RabbitMQ HA policies for single-node setup

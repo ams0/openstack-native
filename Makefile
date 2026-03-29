@@ -1,7 +1,7 @@
 # Makefile for OpenStack Native on Kubernetes
 # This Makefile automates cluster creation, deployment, and testing
 
-.PHONY: help cluster-up cluster-down install-operators deploy-infrastructure deploy-services deploy-all test clean check-tools
+.PHONY: help cluster-up cluster-down install-operators deploy-infrastructure deploy-services deploy-all test clean check-tools generate-values
 
 # Variables
 CLUSTER_NAME ?= openstack-cluster
@@ -68,7 +68,7 @@ create-namespace: ## Create OpenStack namespace
 install-argocd: ## Install ArgoCD
 	@echo "$(YELLOW)Installing ArgoCD...$(NC)"
 	@kubectl create namespace $(ARGOCD_NAMESPACE) --dry-run=client -o yaml | kubectl apply -f - 2>/dev/null || true
-	@kubectl apply -n $(ARGOCD_NAMESPACE) -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+	@kubectl apply -n $(ARGOCD_NAMESPACE) -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml --server-side --force-conflicts
 	@echo "$(YELLOW)Waiting for ArgoCD to be ready...$(NC)"
 	@kubectl wait --for=condition=Ready pods --all -n $(ARGOCD_NAMESPACE) --timeout=$(TIMEOUT) 2>/dev/null || echo "$(YELLOW)Some ArgoCD pods may still be initializing$(NC)"
 	@echo "$(GREEN)✓ ArgoCD installed$(NC)"
@@ -163,6 +163,14 @@ show-credentials: ## Display infrastructure credentials
 	@echo "$(YELLOW)RabbitMQ Admin Credentials:$(NC)"
 	@echo -n "Username: " && kubectl get secret -n $(NAMESPACE) openstack-rabbitmq-default-user -o jsonpath='{.data.username}' 2>/dev/null | base64 -d && echo "" || echo "$(RED)Secret not found$(NC)"
 	@echo -n "Password: " && kubectl get secret -n $(NAMESPACE) openstack-rabbitmq-default-user -o jsonpath='{.data.password}' 2>/dev/null | base64 -d && echo "" || echo "$(RED)Secret not found$(NC)"
+
+generate-values: ## Patch ArgoCD keystone Application with current cluster secrets
+	@echo "$(YELLOW)Patching keystone ArgoCD Application with cluster secrets...$(NC)"
+	@MARIADB_PASSWORD=$$(kubectl get secret -n $(NAMESPACE) mariadb-basic-root -o jsonpath='{.data.password}' | base64 -d) && \
+	RABBITMQ_ADMIN_PASSWORD=$$(kubectl get secret -n $(NAMESPACE) openstack-rabbitmq-default-user -o jsonpath='{.data.password}' | base64 -d) && \
+	RABBITMQ_KEYSTONE_PASSWORD=$$(kubectl get secret -n $(NAMESPACE) rabbitmq-keystone-user -o jsonpath='{.data.password}' | base64 -d) && \
+	kubectl patch application keystone -n $(ARGOCD_NAMESPACE) --type merge -p "{\"spec\":{\"sources\":[{\"repoURL\":\"https://opendev.org/openstack/openstack-helm\",\"targetRevision\":\"master\",\"path\":\"keystone\",\"helm\":{\"releaseName\":\"keystone\",\"valueFiles\":[\"\$$values/values/keystone-values.yaml\"],\"parameters\":[{\"name\":\"endpoints.oslo_db.auth.admin.password\",\"value\":\"$$MARIADB_PASSWORD\"},{\"name\":\"endpoints.oslo_messaging.auth.admin.password\",\"value\":\"$$RABBITMQ_ADMIN_PASSWORD\"},{\"name\":\"endpoints.oslo_messaging.auth.keystone.password\",\"value\":\"$$RABBITMQ_KEYSTONE_PASSWORD\"}]}},{\"repoURL\":\"https://github.com/ams0/openstack-native\",\"targetRevision\":\"main\",\"ref\":\"values\"}]}}" && \
+	echo "$(GREEN)✓ Keystone Application patched with current passwords$(NC)"
 
 deploy-services-gitops: install-argocd ## Deploy OpenStack services via ArgoCD (GitOps approach)
 	@echo "$(YELLOW)Deploying OpenStack services via ArgoCD...$(NC)"
