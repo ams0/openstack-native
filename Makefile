@@ -1,7 +1,7 @@
 # Makefile for OpenStack Native on Kubernetes
 # This Makefile automates cluster creation, deployment, and testing
 
-.PHONY: help cluster-up cluster-down install-operators deploy-infrastructure deploy-services deploy-all test clean check-tools generate-values
+.PHONY: help cluster-up cluster-down install-operators deploy-infrastructure deploy-services deploy-all test clean check-tools generate-values install-csi install-lb test-storage test-lb clean-csi
 
 # Variables
 CLUSTER_NAME ?= openstack-cluster
@@ -11,6 +11,36 @@ KIND_CONFIG ?= kind-cluster.yaml
 KUBECONTEXT ?= kind-$(CLUSTER_NAME)
 HELM_REPO_URL ?= https://opendev.org/openstack/openstack-helm
 TIMEOUT ?= 600s
+
+# Platform for the kind node image.
+# OpenStack-Helm images (quay.io/airshipit/*) are published for linux/amd64 ONLY.
+# containerd inside a kind node pulls for the node's own platform, so on Apple
+# Silicon the node must itself be amd64 or every OpenStack image fails to pull
+# with "no match for platform". The amd64 node then runs under Rosetta/qemu.
+# On an amd64 host this is a no-op. Override with KIND_PLATFORM= to use native.
+KIND_PLATFORM ?= linux/amd64
+
+# Cluster add-ons (kind lab): CSI storage + LoadBalancer
+CSI_HOSTPATH_VERSION ?= v1.18.0
+EXTERNAL_SNAPSHOTTER_VERSION ?= v8.6.0
+CSI_STORAGE_CLASS ?= csi-hostpath-sc
+
+# OpenStack control plane. OSH_TAG must match the tags in the upstream charts, since
+# side-loaded images are matched by exact name:tag (pods never pull — see
+# docs/APPLE-SILICON.md).
+OSH_DIR ?= $(CURDIR)/.openstack-helm
+OSH_TAG ?= 2026.1-ubuntu_noble
+OPENSTACK_SERVICES ?= keystone placement glance neutron nova horizon
+OPENSTACK_IMAGES ?= \
+	quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_noble \
+	quay.io/airshipit/ceph-config-helper:latest-ubuntu_jammy \
+	quay.io/airshipit/openstack-client:$(OSH_TAG) \
+	quay.io/airshipit/keystone:$(OSH_TAG) \
+	quay.io/airshipit/placement:$(OSH_TAG) \
+	quay.io/airshipit/glance:$(OSH_TAG) \
+	quay.io/airshipit/neutron:$(OSH_TAG) \
+	quay.io/airshipit/nova:$(OSH_TAG) \
+	quay.io/airshipit/horizon:$(OSH_TAG)
 
 # Colors for output
 GREEN := \033[0;32m
@@ -41,7 +71,9 @@ cluster-up: check-tools ## Create a Kind cluster for OpenStack
 	@if kind get clusters | grep -q "^$(CLUSTER_NAME)$$"; then \
 		echo "$(GREEN)✓ Cluster $(CLUSTER_NAME) already exists$(NC)"; \
 	else \
-		kind create cluster --name $(CLUSTER_NAME) --config $(KIND_CONFIG) && \
+		echo "$(YELLOW)Node platform: $(KIND_PLATFORM)$(NC)"; \
+		DOCKER_DEFAULT_PLATFORM=$(KIND_PLATFORM) \
+			kind create cluster --name $(CLUSTER_NAME) --config $(KIND_CONFIG) && \
 		echo "$(GREEN)✓ Cluster created successfully$(NC)"; \
 	fi
 	@echo "$(YELLOW)Waiting for cluster to be ready...$(NC)"
@@ -148,6 +180,74 @@ deploy-infrastructure: create-namespace ## Deploy MariaDB, RabbitMQ, and Memcach
 	@echo "$(YELLOW)Deploying RabbitMQ users and vhosts...$(NC)"
 	@kubectl apply -f clusters/rabbitmq-users.yaml || echo "$(YELLOW)RabbitMQ users may already exist$(NC)"
 	@echo "$(GREEN)✓ RabbitMQ users configured$(NC)"
+
+install-csi: ## Install CSI hostpath driver + snapshot controller + csi-hostpath-sc StorageClass
+	@echo "$(YELLOW)Installing VolumeSnapshot CRDs ($(EXTERNAL_SNAPSHOTTER_VERSION))...$(NC)"
+	kubectl apply -k "github.com/kubernetes-csi/external-snapshotter/client/config/crd?ref=$(EXTERNAL_SNAPSHOTTER_VERSION)"
+	@echo "$(YELLOW)Installing snapshot-controller...$(NC)"
+	kubectl apply -k "github.com/kubernetes-csi/external-snapshotter/deploy/kubernetes/snapshot-controller?ref=$(EXTERNAL_SNAPSHOTTER_VERSION)"
+	@echo "$(YELLOW)Installing csi-driver-host-path ($(CSI_HOSTPATH_VERSION))...$(NC)"
+	@set -e; TMP=$$(mktemp -d); trap 'rm -rf $$TMP' EXIT; \
+		git clone --depth 1 --branch $(CSI_HOSTPATH_VERSION) -q \
+			https://github.com/kubernetes-csi/csi-driver-host-path.git $$TMP/csi; \
+		$$TMP/csi/deploy/kubernetes-latest/deploy.sh
+	@echo "$(YELLOW)Creating StorageClass $(CSI_STORAGE_CLASS) (as default)...$(NC)"
+	@echo "$(YELLOW)Clearing default flag on kind's 'standard' class...$(NC)"
+	@kubectl patch storageclass standard \
+		-p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' \
+		2>/dev/null || echo "$(YELLOW)('standard' not present — nothing to clear)$(NC)"
+	kubectl apply -f clusters/csi-hostpath-storageclass.yaml
+	@echo "$(GREEN)✓ CSI installed. Driver pods run in the 'default' namespace (upstream layout).$(NC)"
+	@kubectl get sc
+
+install-lb: ## Install cloud-provider-kind (LoadBalancer for kind); prints the command to run it
+	@command -v cloud-provider-kind >/dev/null 2>&1 || { \
+		echo "$(YELLOW)Installing cloud-provider-kind...$(NC)"; \
+		brew install cloud-provider-kind; }
+	@echo "$(GREEN)✓ cloud-provider-kind $$(cloud-provider-kind version 2>/dev/null || echo installed)$(NC)"
+	@echo ""
+	@echo "$(YELLOW)It runs as a host daemon (not in the cluster) and needs root.$(NC)"
+	@echo "$(YELLOW)Start it in a separate terminal and leave it running:$(NC)"
+	@echo ""
+	@echo "  sudo cloud-provider-kind --enable-lb-port-mapping"
+	@echo ""
+	@echo "$(YELLOW)--enable-lb-port-mapping is required on macOS/Docker Desktop: the$(NC)"
+	@echo "$(YELLOW)kind docker network is not routable from the host, so LB ports are$(NC)"
+	@echo "$(YELLOW)published on 127.0.0.1 instead.$(NC)"
+
+load-openstack-images: ## Side-load the amd64 OpenStack images into the node (see docs/APPLE-SILICON.md)
+	@bash scripts/load-amd64-image.sh $(OPENSTACK_IMAGES)
+
+deploy-openstack: ## Deploy the OpenStack control plane + Horizon in dependency order
+	@for svc in $(OPENSTACK_SERVICES); do \
+		echo "$(YELLOW)=== $$svc ===$(NC)"; \
+		OSH_DIR=$(OSH_DIR) NAMESPACE=$(NAMESPACE) KUBECONTEXT=$(KUBECONTEXT) \
+			bash scripts/deploy-service.sh $$svc --wait=false || exit 1; \
+	done
+	@echo "$(GREEN)✓ OpenStack control plane deployed$(NC)"
+	@$(MAKE) --no-print-directory test-openstack
+
+test-openstack: ## Verify the control plane: catalog, APIs and the Horizon UI
+	@bash scripts/test-openstack.sh
+
+test-storage: ## Verify the CSI StorageClass can provision, mount, expand and snapshot
+	@bash scripts/test-storage.sh
+
+test-lb: ## Verify LoadBalancer services get an external IP and answer
+	@bash scripts/test-lb.sh
+
+clean-csi: ## Remove the CSI hostpath driver, snapshot controller and StorageClass
+	@kubectl delete -f clusters/csi-hostpath-storageclass.yaml 2>/dev/null || true
+	@echo "$(YELLOW)Restoring 'standard' as the default StorageClass...$(NC)"
+	@kubectl patch storageclass standard \
+		-p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}' \
+		2>/dev/null || true
+	@set -e; TMP=$$(mktemp -d); trap 'rm -rf $$TMP' EXIT; \
+		git clone --depth 1 --branch $(CSI_HOSTPATH_VERSION) -q \
+			https://github.com/kubernetes-csi/csi-driver-host-path.git $$TMP/csi; \
+		$$TMP/csi/deploy/kubernetes-latest/destroy.sh || true
+	@kubectl delete -k "github.com/kubernetes-csi/external-snapshotter/deploy/kubernetes/snapshot-controller?ref=$(EXTERNAL_SNAPSHOTTER_VERSION)" 2>/dev/null || true
+	@echo "$(GREEN)✓ CSI removed (VolumeSnapshot CRDs left in place)$(NC)"
 
 setup-secrets: ## Generate and setup OpenStack secrets
 	@echo "$(YELLOW)Setting up OpenStack secrets...$(NC)"

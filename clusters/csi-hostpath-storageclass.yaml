@@ -1,0 +1,24 @@
+---
+# StorageClass backed by csi-driver-host-path (sig-storage).
+# Unlike the kind-default `standard` class (rancher.io/local-path, an external
+# provisioner with no CSIDriver object), this is a real CSI driver: it supports
+# volume snapshots, volume expansion, cloning and raw block volumes.
+#
+# Single-node only — data lives under /var/lib/csi-hostpath-data on the node
+# that runs csi-hostpathplugin-0. Do not use for multi-node or production.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: csi-hostpath-sc
+  labels:
+    app.kubernetes.io/instance: hostpath.csi.k8s.io
+    app.kubernetes.io/part-of: csi-driver-host-path
+  annotations:
+    # Default class, so PVCs that don't name one get CSI rather than local-path.
+    # `make install-csi` clears the same annotation on kind's `standard` class —
+    # two defaults is an error state.
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: hostpath.csi.k8s.io
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true

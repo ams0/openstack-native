@@ -117,8 +117,8 @@ endpoints:
     path: /neutron
     auth:
       admin:
-        username: default_user_II86jGvszXIUUpK7cYU
-        password: cOu7isxpuXU_7swX8oROnyS5-kL-QKRf
+        username: REPLACE_WITH_RABBITMQ_ADMIN_USERNAME
+        password: REPLACE_WITH_RABBITMQ_ADMIN_PASSWORD
       neutron:
         username: neutron
         password: neutron
@@ -139,7 +139,7 @@ endpoints:
         password: neutron
       admin:
         username: root
-        password: Zeyf}]V0Mv3n9oj7
+        password: REPLACE_WITH_MARIADB_ROOT_PASSWORD
 
   # Keystone configuration
   identity:

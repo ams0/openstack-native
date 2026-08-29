@@ -43,6 +43,18 @@ kubectl create secret generic rabbitmq-keystone-user \
   --dry-run=client -o yaml | kubectl apply -f -
 
 echo ""
+# The RabbitMQ messaging-topology-operator refuses to consume a secret that is
+# not explicitly opted in; without this label, applying clusters/rabbitmq-users.yaml
+# fails with:
+#   admission webhook "vuser.kb.io" denied the request: secret "rabbitmq-keystone-user"
+#   must have label rabbitmq.com/topology-operator=true
+for secret in rabbitmq-keystone-user openstack-rabbitmq-default-user; do
+  kubectl label secret "${secret}" \
+    --namespace="${NAMESPACE}" \
+    --context="${CLUSTER_CONTEXT}" \
+    rabbitmq.com/topology-operator=true --overwrite >/dev/null
+done
+
 echo "Secrets created successfully!"
 echo ""
 

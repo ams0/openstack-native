@@ -110,7 +110,7 @@ endpoints:
       admin:
         # Get these from: kubectl get secret -n openstack openstack-rabbitmq-default-user
         username: RABBITMQ_ADMIN_USER
-        password: RABBITMQ_ADMIN_PASSWORD
+        password: REPLACE_WITH_RABBITMQ_ADMIN_PASSWORD
       neutron:
         username: neutron
         password: neutron
@@ -131,8 +131,7 @@ endpoints:
       admin:
         # Get root password from: kubectl get secret -n openstack mariadb-basic-root
         username: root
-        password: MARIADB_ROOT_PASSWORD
-
+        password: REPLACE_WITH_MARIADB_ROOT_PASSWORD
   # Keystone configuration
   identity:
     name: keystone

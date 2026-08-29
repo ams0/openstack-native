@@ -123,3 +123,7 @@ values/backup-*/
 values/*-generated.yaml
 clusters/sealed-*.yaml
 
+
+# Local openstack-helm chart checkout (scripts/deploy-service.sh)
+.openstack-helm/
+.openstack-helm

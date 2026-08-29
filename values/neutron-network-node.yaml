@@ -217,7 +217,7 @@ endpoints:
     auth:
       admin:
         username: RABBITMQ_ADMIN_USER
-        password: RABBITMQ_ADMIN_PASSWORD
+        password: REPLACE_WITH_RABBITMQ_ADMIN_PASSWORD
         secret:
           tls:
             internal: rabbitmq-tls-secret

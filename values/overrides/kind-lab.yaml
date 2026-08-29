@@ -1,0 +1,111 @@
+# Overrides applied on top of values/<service>-values.yaml for the single-node
+# kind lab. Layer this file AFTER the base values file.
+#
+# Two reasons this exists:
+#
+# 1. TLS to RabbitMQ is off here. The base values set `tls.oslo_messaging: true`,
+#    which makes openstack-helm resolve the broker endpoint through the *https*
+#    port name (it builds a management-API URI for the rabbit_init job). Our
+#    endpoints map only defines `amqp` and `http`, so the lookup returns nil and
+#    the chart fails to render:
+#      _endpoint_port_lookup.tpl: index of untyped nil
+#    Turning TLS off uses plain AMQP on 5672, which the RabbitmqCluster already
+#    exposes alongside 5671. Re-enabling TLS means defining the https port AND
+#    making each service image trust the cert-manager CA — out of scope for a lab.
+#
+# 2. Everything is sized down. This node is a single kind container, and every
+#    OpenStack image is amd64 running under emulation, so the defaults (multiple
+#    API replicas, generous requests) do not fit.
+
+endpoints:
+  oslo_messaging:
+    port:
+      amqp:
+        default: 5672
+
+tls:
+  oslo_messaging: false
+
+pod:
+  replicas:
+    api: 1
+    registry: 1
+  resources:
+    enabled: true
+    api:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "1536Mi"
+        cpu: "2000m"
+    jobs:
+      bootstrap:
+        requests: { memory: "128Mi", cpu: "100m" }
+        limits: { memory: "1024Mi", cpu: "2000m" }
+      db_init:
+        requests: { memory: "128Mi", cpu: "100m" }
+        limits: { memory: "1024Mi", cpu: "2000m" }
+      db_sync:
+        requests: { memory: "128Mi", cpu: "100m" }
+        limits: { memory: "1024Mi", cpu: "2000m" }
+      db_drop:
+        requests: { memory: "128Mi", cpu: "100m" }
+        limits: { memory: "1024Mi", cpu: "2000m" }
+      ks_endpoints:
+        requests: { memory: "128Mi", cpu: "100m" }
+        limits: { memory: "1024Mi", cpu: "2000m" }
+      ks_service:
+        requests: { memory: "128Mi", cpu: "100m" }
+        limits: { memory: "1024Mi", cpu: "2000m" }
+      ks_user:
+        requests: { memory: "128Mi", cpu: "100m" }
+        limits: { memory: "1024Mi", cpu: "2000m" }
+      rabbit_init:
+        requests: { memory: "128Mi", cpu: "100m" }
+        limits: { memory: "1024Mi", cpu: "2000m" }
+
+# Images are side-loaded into the node by scripts/load-amd64-image.sh (they are
+# amd64-only and the node is arm64). A real pull would re-resolve the upstream
+# manifest and fail the platform match, so never pull.
+images:
+  pull_policy: "IfNotPresent"
+
+# Storage. The charts default to a StorageClass named "general" and this repo's
+# glance values ask for "default"; neither exists on a kind cluster. Point both
+# volume claims at the CSI class installed by `make install-csi`.
+volume:
+  class_name: csi-hostpath-sc
+  size: 2Gi
+volume_staging:
+  class_name: csi-hostpath-sc
+  size: 2Gi
+
+
+# ---------------------------------------------------------------------------
+# Neutron / Nova: control plane only.
+#
+# This kind node is not a compute host: there is no OVS, no libvirt, and no
+# second NIC. Run only the API/scheduler/conductor components and disable every
+# daemonset that expects to manage host networking or hypervisors. Compute nodes
+# are bare metal in this architecture (see docs/ARCHITECTURE.md), so these agents
+# belong there, not here.
+#
+# These keys are ignored by charts that do not define them, so the overlay stays
+# a single file for every service.
+# Single node: helm test / selenium / rally images are not side-loaded, so leave
+# those pods out of the release entirely.
+manifests:
+  job_bootstrap: true
+  pod_rally_test: false
+  pod_helm_tests: false
+  daemonset_dhcp_agent: false
+  daemonset_l3_agent: false
+  daemonset_lb_agent: false
+  daemonset_metadata_agent: false
+  daemonset_ovs_agent: false
+  daemonset_sriov_agent: false
+  daemonset_netns_cleanup_cron: false
+  daemonset_compute: false
+  daemonset_libvirt: false
+  cron_job_cell_setup: true

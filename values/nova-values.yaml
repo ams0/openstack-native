@@ -46,29 +46,36 @@ endpoints:
     auth:
       admin:
         username: root
-        password: Zeyf}]V0Mv3n9oj7
+        password: REPLACE_WITH_MARIADB_ROOT_PASSWORD
       nova:
         username: nova
         password: nova
     hosts:
       default: mariadb-basic
 
-  oslo_db_api:
-    auth:
-      admin:
-        username: root
-        password: Zeyf}]V0Mv3n9oj7
-      nova:
-        username: nova
-        password: nova
-    hosts:
-      default: mariadb-basic
-
+  # NOTE: the nova chart's database endpoints are oslo_db, oslo_db_cell0 and
+  # oslo_db_cell1 — there is no oslo_db_api. Overriding a key the chart does not
+  # define is silently ignored, and any cell endpoint left unset falls back to
+  # the chart default host ("mariadb"), which does not exist here; nova-db-init
+  # then fails with:
+  #   Can't connect to MySQL server on 'mariadb.openstack.svc.cluster.local'
+  # All three must be overridden.
   oslo_db_cell0:
     auth:
       admin:
         username: root
-        password: Zeyf}]V0Mv3n9oj7
+        password: REPLACE_WITH_MARIADB_ROOT_PASSWORD
+      nova:
+        username: nova
+        password: nova
+    hosts:
+      default: mariadb-basic
+
+  oslo_db_cell1:
+    auth:
+      admin:
+        username: root
+        password: REPLACE_WITH_MARIADB_ROOT_PASSWORD
       nova:
         username: nova
         password: nova
@@ -79,8 +86,8 @@ endpoints:
   oslo_messaging:
     auth:
       admin:
-        username: default_user_II86jGvszXIUUpK7cYU
-        password: cOu7isxpuXU_7swX8oROnyS5-kL-QKRf
+        username: REPLACE_WITH_RABBITMQ_ADMIN_USERNAME
+        password: REPLACE_WITH_RABBITMQ_ADMIN_PASSWORD
       nova:
         username: nova
         password: nova
