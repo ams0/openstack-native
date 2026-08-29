@@ -120,7 +120,18 @@ grep -E "will use .* MiB|Rosetta" \
 ```
 
 Memory and CPU cannot be set from the `docker desktop` CLI; the file edit above (while
-stopped) or the GUI are the only routes.
+stopped) or the GUI are the only routes. `scripts/docker-desktop-resources.sh` does the
+stop / edit / start / verify cycle for you:
+
+```bash
+./scripts/docker-desktop-resources.sh                  # 24 GiB, 10 CPUs, Rosetta
+MEMORY_MIB=32768 CPUS=12 ./scripts/docker-desktop-resources.sh
+```
+
+Values written this way survive restarts and reboots, but are not *enforced* — the GUI
+can still change them. Locking requires Docker Desktop's Settings Management
+(`admin-settings.json`), which needs a Docker Business subscription; the script prints
+the exact file and `sudo` command if you want it.
 
 ## What is deployed, and what is not
 
