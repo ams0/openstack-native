@@ -14,12 +14,15 @@ labels:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
 
+# Keep these tags in sync with OSH_TAG in the Makefile: on arm64 the images are
+# side-loaded by name:tag and pods never pull, so a tag here that was not loaded
+# fails with ImagePullBackOff rather than falling back to a registry.
 images:
   tags:
-    skyline: quay.io/airshipit/skyline:2025.2-ubuntu_noble
-    db_init: quay.io/airshipit/openstack-client:2025.1-ubuntu_noble
-    db_sync: quay.io/airshipit/skyline:2025.2-ubuntu_noble
-    ks_user: quay.io/airshipit/openstack-client:2025.1-ubuntu_noble
+    skyline: quay.io/airshipit/skyline:2026.1-ubuntu_noble
+    db_init: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
+    db_sync: quay.io/airshipit/skyline:2026.1-ubuntu_noble
+    ks_user: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
   pull_policy: "IfNotPresent"
 
 network:

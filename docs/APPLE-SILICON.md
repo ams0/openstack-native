@@ -136,7 +136,8 @@ the exact file and `sudo` command if you want it.
 ## What is deployed, and what is not
 
 Running: keystone, placement, glance, neutron (server, rpc-server, periodic-worker),
-nova (api-osapi, api-metadata, conductor, scheduler, novncproxy), horizon.
+nova (api-osapi, api-metadata, conductor, scheduler, novncproxy), and both dashboards —
+horizon on NodePort 31000 and skyline on 31001.
 
 Not running, by design: every neutron agent (dhcp, l3, metadata, ovs, sriov) and
 nova-compute/libvirt. This node has no OVS, no libvirt and no second NIC — in this

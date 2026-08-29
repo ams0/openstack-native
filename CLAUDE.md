@@ -30,8 +30,9 @@ make install-csi             # csi-driver-host-path + snapshot-controller + csi-
 make test-lb / test-storage  # verify those two actually work (real provisioning/traffic)
 
 make load-openstack-images   # side-load amd64 OpenStack images (REQUIRED on Apple Silicon)
-make deploy-openstack        # keystone → placement → glance → neutron → nova → horizon
-make test-openstack          # real token + catalog + Horizon login, not just pod status
+make deploy-openstack        # keystone → placement → glance → neutron → nova → horizon → skyline
+make test-openstack          # real token + catalog + Horizon/Skyline login, not just pod status
+                             #   Horizon :31000, Skyline :31001 (admin/password)
 
 make test                    # test-infrastructure + test-services (readiness checks only)
 make test-api                # scripts/test-services.sh — real API calls, needs port-forwards

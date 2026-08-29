@@ -30,7 +30,7 @@ CSI_STORAGE_CLASS ?= csi-hostpath-sc
 # docs/APPLE-SILICON.md).
 OSH_DIR ?= $(CURDIR)/.openstack-helm
 OSH_TAG ?= 2026.1-ubuntu_noble
-OPENSTACK_SERVICES ?= keystone placement glance neutron nova horizon
+OPENSTACK_SERVICES ?= keystone placement glance neutron nova horizon skyline
 OPENSTACK_IMAGES ?= \
 	quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_noble \
 	quay.io/airshipit/ceph-config-helper:latest-ubuntu_jammy \
@@ -40,7 +40,8 @@ OPENSTACK_IMAGES ?= \
 	quay.io/airshipit/glance:$(OSH_TAG) \
 	quay.io/airshipit/neutron:$(OSH_TAG) \
 	quay.io/airshipit/nova:$(OSH_TAG) \
-	quay.io/airshipit/horizon:$(OSH_TAG)
+	quay.io/airshipit/horizon:$(OSH_TAG) \
+	quay.io/airshipit/skyline:$(OSH_TAG)
 
 # Colors for output
 GREEN := \033[0;32m

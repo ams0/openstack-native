@@ -120,6 +120,33 @@ else
   warn "Horizon REST -> Glance returned no images"
 fi
 
+# Skyline is optional — only checked when its NodePort answers. It is a separate
+# dashboard (SPA + its own API) rather than a Django app, so it is verified through
+# its login API rather than by scraping pages.
+SKYLINE_URL="${SKYLINE_URL:-http://localhost:31001}"
+if curl -s -o /dev/null --max-time 10 "${SKYLINE_URL}/" 2>/dev/null; then
+  info "Driving the Skyline UI at ${SKYLINE_URL}..."
+  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "${SKYLINE_URL}/" || echo 000)
+  [ "$code" = "200" ] && pass "Skyline served -> HTTP 200" || warn "Skyline -> HTTP $code"
+
+  resp=$(mktemp)
+  lcode=$(curl -s --max-time 60 -o "$resp" -w "%{http_code}" \
+    -X POST "${SKYLINE_URL}/api/v1/login" -H "Content-Type: application/json" \
+    -d "{\"region\":\"RegionOne\",\"domain\":\"default\",\"username\":\"${HORIZON_USER}\",\"password\":\"${HORIZON_PASS}\"}" \
+    || echo 000)
+  if [ "$lcode" = "200" ] && grep -q '"name"' "$resp"; then
+    pass "Skyline login succeeded ($(python3 -c "
+import json;d=json.load(open('$resp'));print('user='+str(d.get('user',{}).get('name'))+' project='+str(d.get('project',{}).get('name')))" 2>/dev/null || echo ok))"
+  else
+    warn "Skyline login returned HTTP $lcode"
+  fi
+  rm -f "$resp"
+  SKYLINE_LINE="   Skyline:   ${SKYLINE_URL}  (${HORIZON_USER} / ${HORIZON_PASS}, domain default)"
+else
+  SKYLINE_LINE=""
+fi
+
 echo ""
 pass "OpenStack control plane verified"
-echo "   Dashboard: ${HORIZON_URL}  (${HORIZON_USER} / ${HORIZON_PASS}, domain Default)"
+echo "   Horizon:   ${HORIZON_URL}  (${HORIZON_USER} / ${HORIZON_PASS}, domain Default)"
+[ -n "$SKYLINE_LINE" ] && echo "$SKYLINE_LINE"
